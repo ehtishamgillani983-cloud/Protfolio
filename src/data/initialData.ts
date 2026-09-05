@@ -48,10 +48,36 @@ export const INITIAL_SITE_SETTINGS: SiteSettings = {
   projectAvailability: 'Accepting New Projects & Free Consultations',
   callNowEnabled: true,
   whatsappEnabled: true,
-  heroBackgroundMode: '3d-canvas',
-  heroVideoUrl: '',
+  heroBackgroundMode: 'cinematic-video',
+  heroVideoUrl: '/assets/hero-bg.mp4',
   heroVideoScrubEnabled: true,
-  heroVideoPlaybackRate: 0.6,
+  heroVideoPlaybackRate: 0.5,
+  mediaGallery: [
+    {
+      id: 'media-logo',
+      name: 'Nova Studio Logo',
+      url: '/assets/nova-logo.webp',
+      type: 'image',
+      category: 'branding',
+      uploadedAt: '2026-03-01T00:00:00Z',
+    },
+    {
+      id: 'media-founder',
+      name: 'Syed Ehtisham Gillani (Founder)',
+      url: '/assets/founder-photo.jpg',
+      type: 'image',
+      category: 'founder',
+      uploadedAt: '2026-03-01T00:00:00Z',
+    },
+    {
+      id: 'media-hero-vid',
+      name: 'Hero Cinematic Background Video',
+      url: '/assets/hero-bg.mp4',
+      type: 'video',
+      category: 'hero',
+      uploadedAt: '2026-03-01T00:00:00Z',
+    },
+  ],
 };
 
 // 15 SERVICES: Simple, clear, easy to understand. No complex technical jargon!

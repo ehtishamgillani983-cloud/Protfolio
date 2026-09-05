@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ThreeCanvas } from './components/ThreeCanvas';
+import { LightingStarsBackground } from './components/LightingStarsBackground';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { AboutFounder } from './components/AboutFounder';
@@ -115,6 +116,9 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#05070c] text-white selection:bg-cyan-500 selection:text-black relative">
+      {/* Global Lighting Stars & Celestial Starfield Background */}
+      <LightingStarsBackground />
+
       {/* 3D WebGL Kinetic Background Canvas (rendered unless in pure cinematic video mode) */}
       {showThreeCanvas && (
         <ThreeCanvas

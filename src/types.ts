@@ -47,11 +47,12 @@ export interface Service {
   shortDesc: string;
   fullDesc: string;
   deliverables: string[];
-  deliverablesHighlights: string[];
+  deliverablesHighlights?: string[];
   technologies: string[];
   startingPrice?: string;
-  featured: boolean;
-  order: number;
+  turnaround?: string;
+  featured?: boolean;
+  order?: number;
 }
 
 export interface Testimonial {
@@ -59,9 +60,11 @@ export interface Testimonial {
   clientName: string;
   clientRole: string;
   clientCompany: string;
-  avatarUrl: string;
+  avatarUrl?: string;
+  clientAvatar?: string;
   quote: string;
-  projectTitle: string;
+  projectTitle?: string;
+  projectDelivered?: string;
   rating: number; // 1-5
   verified: boolean;
   createdAt?: string;
@@ -132,6 +135,17 @@ export interface SiteSettings {
   heroVideoUrl?: string; // Replaceable video URL or frame sequence video
   heroVideoScrubEnabled: boolean; // Scroll-controlled playback
   heroVideoPlaybackRate: number; // Slow smooth speed (e.g. 0.6)
+  mediaGallery?: MediaAsset[];
+}
+
+export interface MediaAsset {
+  id: string;
+  name: string;
+  url: string;
+  type: 'image' | 'video';
+  category: 'branding' | 'founder' | 'projects' | 'hero' | 'general';
+  uploadedAt: string;
+  size?: string;
 }
 
 export interface IndustryItem {

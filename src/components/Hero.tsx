@@ -41,7 +41,22 @@ export const Hero: React.FC<HeroProps> = ({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Smooth Scroll-driven video scrubbing logic
+  // Ensure initial video playback at slow speed
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video) {
+      video.playbackRate = settings.heroVideoPlaybackRate || 0.5;
+      video.muted = true;
+      const playPromise = video.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          // Autoplay policy fallback
+        });
+      }
+    }
+  }, [settings.heroVideoUrl, settings.heroVideoPlaybackRate]);
+
+  // Smooth Scroll & mouse-wheel driven video scrubbing logic
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !settings.heroVideoUrl || isMobile || !settings.heroVideoScrubEnabled) {
@@ -59,17 +74,17 @@ export const Hero: React.FC<HeroProps> = ({
 
       const scrollY = window.scrollY;
       const windowHeight = window.innerHeight;
-      // Map first 1.5 screen heights of scroll to video duration
-      const maxScroll = windowHeight * 1.5;
+      // Map first 1.8 screen heights of scroll to video duration
+      const maxScroll = windowHeight * 1.8;
       const scrollFraction = Math.min(Math.max(scrollY / maxScroll, 0), 1);
 
-      if (video.duration && !isNaN(video.duration)) {
+      if (video.duration && !isNaN(video.duration) && video.duration > 0) {
         targetTime = scrollFraction * video.duration;
       }
 
       scrollTimeout = setTimeout(() => {
         isUserScrolling = false;
-      }, 150);
+      }, 180);
     };
 
     // Smooth interpolation loop
@@ -80,12 +95,12 @@ export const Hero: React.FC<HeroProps> = ({
         }
         // Smoothly interpolate current time towards targetTime
         const diff = targetTime - video.currentTime;
-        if (Math.abs(diff) > 0.04) {
-          video.currentTime += diff * 0.15;
+        if (Math.abs(diff) > 0.02) {
+          video.currentTime += diff * 0.2;
         }
       } else if (!isUserScrolling && video.paused) {
         // Slow continuous ambient playback when user stops scrolling
-        video.playbackRate = settings.heroVideoPlaybackRate || 0.6;
+        video.playbackRate = settings.heroVideoPlaybackRate || 0.5;
         video.play().catch(() => {
           // Autoplay policy fallback
         });
@@ -94,10 +109,12 @@ export const Hero: React.FC<HeroProps> = ({
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('wheel', handleScroll, { passive: true });
     animationFrameId = requestAnimationFrame(interpolateVideo);
 
     return () => {
       window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('wheel', handleScroll);
       cancelAnimationFrame(animationFrameId);
       clearTimeout(scrollTimeout);
     };

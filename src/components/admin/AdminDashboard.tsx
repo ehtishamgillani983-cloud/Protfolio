@@ -30,6 +30,9 @@ import {
   CheckCircle2,
   Server,
   ShieldCheck,
+  Image as ImageIcon,
+  Film,
+  Link2,
 } from 'lucide-react';
 import {
   Project,
@@ -40,6 +43,7 @@ import {
   SiteSettings,
   SocialLink,
   ProjectType,
+  MediaAsset,
 } from '../../types';
 import {
   getProjects,
@@ -66,6 +70,7 @@ import {
   seedAllDataToSupabase,
   setCustomSupabaseAnonKey,
   uploadMediaToSupabase,
+  deleteMediaAsset,
   signInWithSupabase,
   signOutSupabase,
   getSupabaseUser,
@@ -88,6 +93,7 @@ type TabType =
   | 'leads'
   | 'testimonials'
   | 'faqs'
+  | 'media'
   | 'settings'
   | 'seo'
   | 'security';
@@ -136,6 +142,51 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const [editingFAQ, setEditingFAQ] = useState<FAQ | null>(null);
   const [isAddingFAQ, setIsAddingFAQ] = useState(false);
+
+  // Media gallery filter state
+  const [mediaCategoryFilter, setMediaCategoryFilter] = useState<string>('all');
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+
+  // Leads CRM delete confirmation state
+  const [leadPendingDeleteId, setLeadPendingDeleteId] = useState<string | null>(null);
+
+  const createEmptyService = (): Service => ({
+    id: 'srv-' + Date.now(),
+    title: '',
+    slug: '',
+    shortDesc: '',
+    fullDesc: '',
+    deliverables: ['Custom High-Impact Architecture', 'Full Responsive Experience'],
+    deliverablesHighlights: ['Scalable Architecture', 'SEO Ready'],
+    technologies: ['React', 'TypeScript', 'Tailwind CSS'],
+    startingPrice: '$2,500',
+    turnaround: '2-3 Weeks',
+    iconName: 'Globe',
+    featured: true,
+    order: (services.length || 0) + 1,
+  });
+
+  const createEmptyTestimonial = (): Testimonial => ({
+    id: 'test-' + Date.now(),
+    clientName: '',
+    clientCompany: '',
+    clientRole: 'CEO & Founder',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+    clientAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+    quote: '',
+    rating: 5,
+    projectTitle: 'Custom Digital Platform',
+    projectDelivered: 'Custom Digital Platform',
+    verified: true,
+  });
+
+  const createEmptyFAQ = (): FAQ => ({
+    id: 'faq-' + Date.now(),
+    question: '',
+    answer: '',
+    category: 'General',
+    order: (faqs.length || 0) + 1,
+  });
 
   // Security password state
   const [newPassword, setNewPassword] = useState('');
@@ -367,8 +418,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     showToast(`Project "${p.title}" saved.`);
   };
 
+  const safeConfirm = (message: string): boolean => {
+    try {
+      return window.confirm(message);
+    } catch {
+      return true;
+    }
+  };
+
   const handleDeleteProject = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this project?')) return;
+    if (!safeConfirm('Are you sure you want to delete this project?')) return;
     await deleteProject(id);
     const updated = await getProjects();
     setProjects(updated);
@@ -388,7 +447,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const handleDeleteService = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this service?')) return;
+    if (!safeConfirm('Are you sure you want to delete this service?')) return;
     await deleteService(id);
     const updated = await getServices();
     setServices(updated);
@@ -408,7 +467,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const handleDeleteTestimonial = async (id: string) => {
-    if (!confirm('Delete this testimonial?')) return;
+    if (!safeConfirm('Delete this testimonial?')) return;
     await deleteTestimonial(id);
     setTestimonials(await getTestimonials());
     onDataUpdated();
@@ -426,7 +485,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const handleDeleteFAQ = async (id: string) => {
-    if (!confirm('Delete this FAQ?')) return;
+    if (!safeConfirm('Delete this FAQ?')) return;
     await deleteFAQ(id);
     setFaqs(await getFAQs());
     onDataUpdated();
@@ -441,10 +500,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const handleDeleteLead = async (id: string) => {
-    if (!confirm('Delete this lead?')) return;
-    await deleteLead(id);
-    setLeads(await getContactLeads());
-    showToast('Lead deleted.');
+    setLeadPendingDeleteId(null);
+    // Instant optimistic removal from list
+    setLeads((prev) => prev.filter((l) => l.id !== id));
+    showToast('Lead inquiry removed.');
+    try {
+      await deleteLead(id);
+      const updated = await getContactLeads();
+      setLeads(updated);
+    } catch (err) {
+      console.warn('Error deleting lead:', err);
+      showToast('Notice: updated lead list.');
+      setLeads(await getContactLeads());
+    }
   };
 
   const exportLeadsToCSV = () => {
@@ -783,6 +851,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               >
                 <HelpCircle className="w-4 h-4" />
                 <span>FAQs</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('media')}
+                className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-medium flex items-center justify-between transition-all ${
+                  activeTab === 'media'
+                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <ImageIcon className="w-4 h-4" />
+                  <span>Gallery & Media</span>
+                </div>
+                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-white/10">
+                  {settings?.mediaGallery?.length || 0}
+                </span>
               </button>
 
               <div className="my-2 border-t border-white/5" />
@@ -1355,37 +1440,219 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         Services & Deliverables
                       </h3>
                       <p className="text-xs text-slate-400">
-                        Manage agency capabilities, pricing benchmarks, and deliverables.
+                        Manage agency capabilities, pricing benchmarks, and deliverables. All updates sync to Supabase.
                       </p>
                     </div>
+                    <button
+                      onClick={() => {
+                        setEditingService(createEmptyService());
+                        setIsAddingService(true);
+                      }}
+                      className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-cyan-500 to-blue-600 flex items-center gap-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Add New Service</span>
+                    </button>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {services.map((s) => (
                       <div
                         key={s.id}
-                        className="glass-panel p-5 rounded-2xl border border-white/10 space-y-3"
+                        className="glass-panel p-5 rounded-2xl border border-white/10 space-y-3 flex flex-col justify-between"
                       >
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-bold text-white text-base">{s.title}</h4>
-                          <span className="text-xs font-mono text-cyan-300">
-                            {s.startingPrice}
-                          </span>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-bold text-white text-base">{s.title}</h4>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-mono text-cyan-300 mr-2">
+                                {s.startingPrice}
+                              </span>
+                              <button
+                                onClick={() => {
+                                  setEditingService(s);
+                                  setIsAddingService(false);
+                                }}
+                                className="p-1.5 rounded-lg glass-panel text-slate-300 hover:text-cyan-300"
+                                title="Edit service"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteService(s.id)}
+                                className="p-1.5 rounded-lg glass-panel text-slate-400 hover:text-rose-400"
+                                title="Delete service"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                          <p className="text-xs text-slate-300">{s.shortDesc}</p>
+                          <div className="flex flex-wrap gap-1">
+                            {s.technologies.map((t) => (
+                              <span
+                                key={t}
+                                className="px-2 py-0.5 rounded text-[10px] font-mono bg-white/5 text-slate-300"
+                              >
+                                {t}
+                              </span>
+                            ))}
+                          </div>
                         </div>
-                        <p className="text-xs text-slate-300">{s.shortDesc}</p>
-                        <div className="flex flex-wrap gap-1">
-                          {s.technologies.map((t) => (
-                            <span
-                              key={t}
-                              className="px-2 py-0.5 rounded text-[10px] font-mono bg-white/5 text-slate-300"
-                            >
-                              {t}
-                            </span>
-                          ))}
-                        </div>
+                        {s.turnaround && (
+                          <div className="text-[11px] font-mono text-slate-400 pt-2 border-t border-white/5">
+                            Turnaround: <span className="text-white">{s.turnaround}</span>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
+
+                  {/* Add/Edit Service Modal */}
+                  {(editingService || isAddingService) && editingService && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+                      <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto glass-panel p-6 sm:p-8 rounded-3xl border border-white/20 bg-[#090d16] space-y-4">
+                        <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                          <h4 className="font-display text-lg font-bold text-white">
+                            {isAddingService ? 'Add New Service' : `Edit: ${editingService.title}`}
+                          </h4>
+                          <button
+                            onClick={() => {
+                              setEditingService(null);
+                              setIsAddingService(false);
+                            }}
+                            className="text-slate-400 hover:text-white"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
+
+                        <div className="space-y-4 text-xs">
+                          <div>
+                            <label className="block text-slate-300 mb-1">Service Title</label>
+                            <input
+                              type="text"
+                              value={editingService.title}
+                              onChange={(e) =>
+                                setEditingService({ ...editingService, title: e.target.value })
+                              }
+                              placeholder="e.g. Next-Gen Web Applications"
+                              className="w-full glass-panel px-3 py-2 rounded-xl text-white border border-white/10"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-slate-300 mb-1">Starting Price</label>
+                              <input
+                                type="text"
+                                value={editingService.startingPrice}
+                                onChange={(e) =>
+                                  setEditingService({ ...editingService, startingPrice: e.target.value })
+                                }
+                                placeholder="e.g. $2,500"
+                                className="w-full glass-panel px-3 py-2 rounded-xl text-white border border-white/10"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-slate-300 mb-1">Turnaround</label>
+                              <input
+                                type="text"
+                                value={editingService.turnaround}
+                                onChange={(e) =>
+                                  setEditingService({ ...editingService, turnaround: e.target.value })
+                                }
+                                placeholder="e.g. 2-3 Weeks"
+                                className="w-full glass-panel px-3 py-2 rounded-xl text-white border border-white/10"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-slate-300 mb-1">Short Description</label>
+                            <textarea
+                              rows={2}
+                              value={editingService.shortDesc}
+                              onChange={(e) =>
+                                setEditingService({ ...editingService, shortDesc: e.target.value })
+                              }
+                              placeholder="Concise overview shown in cards..."
+                              className="w-full glass-panel px-3 py-2 rounded-xl text-white border border-white/10"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-slate-300 mb-1">Full Description</label>
+                            <textarea
+                              rows={3}
+                              value={editingService.fullDesc}
+                              onChange={(e) =>
+                                setEditingService({ ...editingService, fullDesc: e.target.value })
+                              }
+                              placeholder="Detailed capability overview..."
+                              className="w-full glass-panel px-3 py-2 rounded-xl text-white border border-white/10"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-slate-300 mb-1">
+                              Technologies & Tools (comma separated)
+                            </label>
+                            <input
+                              type="text"
+                              value={editingService.technologies.join(', ')}
+                              onChange={(e) =>
+                                setEditingService({
+                                  ...editingService,
+                                  technologies: e.target.value.split(',').map((t) => t.trim()),
+                                })
+                              }
+                              placeholder="React, TypeScript, Next.js, Supabase..."
+                              className="w-full glass-panel px-3 py-2 rounded-xl text-white border border-white/10"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-slate-300 mb-1">
+                              Deliverables (comma separated)
+                            </label>
+                            <input
+                              type="text"
+                              value={editingService.deliverables.join(', ')}
+                              onChange={(e) =>
+                                setEditingService({
+                                  ...editingService,
+                                  deliverables: e.target.value.split(',').map((d) => d.trim()),
+                                })
+                              }
+                              placeholder="Custom Design, Responsive Build, SEO Optimization..."
+                              className="w-full glass-panel px-3 py-2 rounded-xl text-white border border-white/10"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="pt-4 flex items-center justify-end gap-3 border-t border-white/10">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingService(null);
+                              setIsAddingService(false);
+                            }}
+                            className="px-4 py-2 rounded-xl glass-panel text-xs text-slate-300"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSaveService(editingService)}
+                            className="px-5 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-cyan-500 to-blue-600"
+                          >
+                            Save Service to Supabase
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1455,13 +1722,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                 <option value="closed">Closed / Won</option>
                               </select>
 
-                              <button
-                                onClick={() => handleDeleteLead(lead.id)}
-                                className="p-1.5 rounded-lg glass-panel text-slate-400 hover:text-rose-400"
-                                title="Delete Lead"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                              {leadPendingDeleteId === lead.id ? (
+                                <div className="flex items-center gap-1.5 bg-rose-950/80 border border-rose-500/50 px-2 py-1 rounded-lg">
+                                  <span className="text-[11px] text-rose-300 font-mono">Delete?</span>
+                                  <button
+                                    onClick={() => handleDeleteLead(lead.id)}
+                                    className="px-2 py-0.5 rounded text-[11px] font-mono bg-rose-600 hover:bg-rose-500 text-white font-semibold transition-colors shadow-sm"
+                                    title="Confirm permanent deletion"
+                                  >
+                                    Yes
+                                  </button>
+                                  <button
+                                    onClick={() => setLeadPendingDeleteId(null)}
+                                    className="px-1.5 py-0.5 rounded text-[11px] font-mono text-slate-300 hover:text-white glass-panel transition-colors"
+                                    title="Cancel"
+                                  >
+                                    No
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => setLeadPendingDeleteId(lead.id)}
+                                  className="p-1.5 rounded-lg glass-panel text-slate-400 hover:text-rose-400 hover:border-rose-500/30 transition-colors"
+                                  title="Delete Lead"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
                             </div>
                           </div>
 
@@ -1512,34 +1799,264 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         Client Testimonials
                       </h3>
                       <p className="text-xs text-slate-400">
-                        Manage reviews, client roles, and verification statuses.
+                        Manage client reviews, roles, quotes, and star ratings. All persisted in Supabase.
                       </p>
                     </div>
+                    <button
+                      onClick={() => {
+                        setEditingTestimonial(createEmptyTestimonial());
+                        setIsAddingTestimonial(true);
+                      }}
+                      className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-cyan-500 to-blue-600 flex items-center gap-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Add New Testimonial</span>
+                    </button>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {testimonials.map((t) => (
                       <div
                         key={t.id}
-                        className="glass-panel p-5 rounded-2xl border border-white/10 space-y-3"
+                        className="glass-panel p-5 rounded-2xl border border-white/10 space-y-3 flex flex-col justify-between"
                       >
-                        <div className="flex items-center justify-between">
-                          <div className="font-bold text-white text-sm">
-                            {t.clientName} ({t.clientCompany})
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <img
+                                src={t.clientAvatar}
+                                alt={t.clientName}
+                                className="w-10 h-10 rounded-full object-cover border border-white/10 shrink-0"
+                                referrerPolicy="no-referrer"
+                              />
+                              <div>
+                                <div className="font-bold text-white text-sm">
+                                  {t.clientName}
+                                </div>
+                                <div className="text-[11px] text-slate-400">
+                                  {t.clientRole} • {t.clientCompany}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => {
+                                  setEditingTestimonial(t);
+                                  setIsAddingTestimonial(false);
+                                }}
+                                className="p-1.5 rounded-lg glass-panel text-slate-300 hover:text-cyan-300"
+                                title="Edit testimonial"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteTestimonial(t.id)}
+                                className="p-1.5 rounded-lg glass-panel text-slate-400 hover:text-rose-400"
+                                title="Delete testimonial"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </div>
-                          <button
-                            onClick={() => handleDeleteTestimonial(t.id)}
-                            className="text-slate-400 hover:text-rose-400"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          <p className="text-xs text-slate-300 italic leading-relaxed">
+                            &ldquo;{t.quote}&rdquo;
+                          </p>
                         </div>
-                        <p className="text-xs text-slate-300 italic">
-                          &ldquo;{t.quote}&rdquo;
-                        </p>
+                        <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[11px] text-slate-400">
+                          <span>{t.projectDelivered || 'Web Studio Project'}</span>
+                          <span className="text-amber-400 font-mono">★ {t.rating}.0</span>
+                        </div>
                       </div>
                     ))}
                   </div>
+
+                  {/* Add/Edit Testimonial Modal */}
+                  {(editingTestimonial || isAddingTestimonial) && editingTestimonial && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+                      <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto glass-panel p-6 sm:p-8 rounded-3xl border border-white/20 bg-[#090d16] space-y-4">
+                        <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                          <h4 className="font-display text-lg font-bold text-white">
+                            {isAddingTestimonial ? 'Add New Testimonial' : `Edit Testimonial: ${editingTestimonial.clientName}`}
+                          </h4>
+                          <button
+                            onClick={() => {
+                              setEditingTestimonial(null);
+                              setIsAddingTestimonial(false);
+                            }}
+                            className="text-slate-400 hover:text-white"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
+
+                        <div className="space-y-4 text-xs">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-slate-300 mb-1">Client Full Name</label>
+                              <input
+                                type="text"
+                                value={editingTestimonial.clientName}
+                                onChange={(e) =>
+                                  setEditingTestimonial({
+                                    ...editingTestimonial,
+                                    clientName: e.target.value,
+                                  })
+                                }
+                                placeholder="e.g. Marcus Vance"
+                                className="w-full glass-panel px-3 py-2 rounded-xl text-white border border-white/10"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-slate-300 mb-1">Company / Organization</label>
+                              <input
+                                type="text"
+                                value={editingTestimonial.clientCompany}
+                                onChange={(e) =>
+                                  setEditingTestimonial({
+                                    ...editingTestimonial,
+                                    clientCompany: e.target.value,
+                                  })
+                                }
+                                placeholder="e.g. Apex Global"
+                                className="w-full glass-panel px-3 py-2 rounded-xl text-white border border-white/10"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-slate-300 mb-1">Client Role / Title</label>
+                              <input
+                                type="text"
+                                value={editingTestimonial.clientRole}
+                                onChange={(e) =>
+                                  setEditingTestimonial({
+                                    ...editingTestimonial,
+                                    clientRole: e.target.value,
+                                  })
+                                }
+                                placeholder="e.g. Chief Executive Officer"
+                                className="w-full glass-panel px-3 py-2 rounded-xl text-white border border-white/10"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-slate-300 mb-1">Rating (1-5)</label>
+                              <input
+                                type="number"
+                                min={1}
+                                max={5}
+                                value={editingTestimonial.rating}
+                                onChange={(e) =>
+                                  setEditingTestimonial({
+                                    ...editingTestimonial,
+                                    rating: parseInt(e.target.value) || 5,
+                                  })
+                                }
+                                className="w-full glass-panel px-3 py-2 rounded-xl text-white border border-white/10"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-slate-300 mb-1">
+                              Client Avatar (URL or Upload)
+                            </label>
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={editingTestimonial.clientAvatar}
+                                onChange={(e) =>
+                                  setEditingTestimonial({
+                                    ...editingTestimonial,
+                                    clientAvatar: e.target.value,
+                                  })
+                                }
+                                placeholder="https://... or upload photo"
+                                className="flex-1 glass-panel px-3 py-2 rounded-xl text-white border border-white/10"
+                              />
+                              <label className="px-3 py-2 rounded-xl glass-panel text-cyan-300 border border-cyan-500/30 cursor-pointer flex items-center gap-1.5 hover:bg-cyan-500/10 transition-colors shrink-0">
+                                <Upload className="w-3.5 h-3.5" />
+                                <span>Upload</span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={async (e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      showToast('Uploading avatar to Supabase...');
+                                      const res = await uploadMediaToSupabase(file, 'general');
+                                      if (res.url) {
+                                        setEditingTestimonial({
+                                          ...editingTestimonial,
+                                          clientAvatar: res.url,
+                                        });
+                                        showToast('Avatar uploaded successfully!');
+                                      } else {
+                                        showToast(`Upload failed: ${res.error}`);
+                                      }
+                                    }
+                                  }}
+                                />
+                              </label>
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-slate-300 mb-1">Project Delivered</label>
+                            <input
+                              type="text"
+                              value={editingTestimonial.projectDelivered}
+                              onChange={(e) =>
+                                setEditingTestimonial({
+                                  ...editingTestimonial,
+                                  projectDelivered: e.target.value,
+                                })
+                              }
+                              placeholder="e.g. Enterprise Cloud Platform"
+                              className="w-full glass-panel px-3 py-2 rounded-xl text-white border border-white/10"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-slate-300 mb-1">Quote / Review</label>
+                            <textarea
+                              rows={4}
+                              value={editingTestimonial.quote}
+                              onChange={(e) =>
+                                setEditingTestimonial({
+                                  ...editingTestimonial,
+                                  quote: e.target.value,
+                                })
+                              }
+                              placeholder="Write client testimonial..."
+                              className="w-full glass-panel px-3 py-2 rounded-xl text-white border border-white/10"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="pt-4 flex items-center justify-end gap-3 border-t border-white/10">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingTestimonial(null);
+                              setIsAddingTestimonial(false);
+                            }}
+                            className="px-4 py-2 rounded-xl glass-panel text-xs text-slate-300"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSaveTestimonial(editingTestimonial)}
+                            className="px-5 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-cyan-500 to-blue-600"
+                          >
+                            Save Testimonial to Supabase
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1552,29 +2069,352 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         Frequently Asked Questions
                       </h3>
                       <p className="text-xs text-slate-400">
-                        Update questions, answers, and categories.
+                        Update questions, answers, and categorization. Stored in Supabase.
                       </p>
                     </div>
+                    <button
+                      onClick={() => {
+                        setEditingFAQ(createEmptyFAQ());
+                        setIsAddingFAQ(true);
+                      }}
+                      className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-cyan-500 to-blue-600 flex items-center gap-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Add New FAQ</span>
+                    </button>
                   </div>
 
                   <div className="space-y-3">
                     {faqs.map((f) => (
                       <div
                         key={f.id}
-                        className="glass-panel p-4 rounded-2xl border border-white/10 space-y-1"
+                        className="glass-panel p-4 rounded-2xl border border-white/10 space-y-2 flex items-start justify-between gap-4"
                       >
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-bold text-white text-sm">
-                            {f.question}
-                          </h4>
-                          <span className="text-[10px] font-mono text-cyan-400">
-                            {f.category}
-                          </span>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-bold text-white text-sm">
+                              {f.question}
+                            </h4>
+                            <span className="text-[10px] font-mono text-cyan-400 px-2 py-0.5 rounded bg-cyan-950/40 border border-cyan-500/20">
+                              {f.category}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-300 leading-relaxed">{f.answer}</p>
                         </div>
-                        <p className="text-xs text-slate-300">{f.answer}</p>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            onClick={() => {
+                              setEditingFAQ(f);
+                              setIsAddingFAQ(false);
+                            }}
+                            className="p-1.5 rounded-lg glass-panel text-slate-300 hover:text-cyan-300"
+                            title="Edit FAQ"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteFAQ(f.id)}
+                            className="p-1.5 rounded-lg glass-panel text-slate-400 hover:text-rose-400"
+                            title="Delete FAQ"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
+
+                  {/* Add/Edit FAQ Modal */}
+                  {(editingFAQ || isAddingFAQ) && editingFAQ && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+                      <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto glass-panel p-6 sm:p-8 rounded-3xl border border-white/20 bg-[#090d16] space-y-4">
+                        <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                          <h4 className="font-display text-lg font-bold text-white">
+                            {isAddingFAQ ? 'Add New FAQ' : 'Edit FAQ'}
+                          </h4>
+                          <button
+                            onClick={() => {
+                              setEditingFAQ(null);
+                              setIsAddingFAQ(false);
+                            }}
+                            className="text-slate-400 hover:text-white"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
+
+                        <div className="space-y-4 text-xs">
+                          <div>
+                            <label className="block text-slate-300 mb-1">Question</label>
+                            <input
+                              type="text"
+                              value={editingFAQ.question}
+                              onChange={(e) =>
+                                setEditingFAQ({ ...editingFAQ, question: e.target.value })
+                              }
+                              placeholder="e.g. What is the typical turnaround time for a custom web studio project?"
+                              className="w-full glass-panel px-3 py-2 rounded-xl text-white border border-white/10"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-slate-300 mb-1">Category</label>
+                              <input
+                                type="text"
+                                value={editingFAQ.category}
+                                onChange={(e) =>
+                                  setEditingFAQ({ ...editingFAQ, category: e.target.value })
+                                }
+                                placeholder="General, Process, Pricing, Tech"
+                                className="w-full glass-panel px-3 py-2 rounded-xl text-white border border-white/10"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-slate-300 mb-1">Display Order</label>
+                              <input
+                                type="number"
+                                value={editingFAQ.order}
+                                onChange={(e) =>
+                                  setEditingFAQ({
+                                    ...editingFAQ,
+                                    order: parseInt(e.target.value) || 1,
+                                  })
+                                }
+                                className="w-full glass-panel px-3 py-2 rounded-xl text-white border border-white/10"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-slate-300 mb-1">Answer</label>
+                            <textarea
+                              rows={4}
+                              value={editingFAQ.answer}
+                              onChange={(e) =>
+                                setEditingFAQ({ ...editingFAQ, answer: e.target.value })
+                              }
+                              placeholder="Comprehensive, clear answer..."
+                              className="w-full glass-panel px-3 py-2 rounded-xl text-white border border-white/10"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="pt-4 flex items-center justify-end gap-3 border-t border-white/10">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingFAQ(null);
+                              setIsAddingFAQ(false);
+                            }}
+                            className="px-4 py-2 rounded-xl glass-panel text-xs text-slate-300"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSaveFAQ(editingFAQ)}
+                            className="px-5 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-cyan-500 to-blue-600"
+                          >
+                            Save FAQ to Supabase
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 7: GALLERY & MEDIA */}
+              {activeTab === 'media' && (
+                <div className="space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                      <h3 className="font-display text-2xl font-bold text-white">
+                        Studio Media Library & Assets
+                      </h3>
+                      <p className="text-xs text-slate-400">
+                        Upload and manage media files (Photos, Logos, Hero Videos). Persisted directly to Supabase storage.
+                      </p>
+                    </div>
+
+                    {/* Upload button */}
+                    <label className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-cyan-500 to-blue-600 flex items-center gap-2 cursor-pointer self-start">
+                      <Upload className="w-4 h-4" />
+                      <span>{isUploadingMedia ? 'Uploading...' : 'Upload Media Asset'}</span>
+                      <input
+                        type="file"
+                        accept="image/*,video/*"
+                        disabled={isUploadingMedia}
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setIsUploadingMedia(true);
+                          showToast(`Uploading ${file.name} to Supabase...`);
+                          const category = file.type.startsWith('video') ? 'hero' : 'branding';
+                          const res = await uploadMediaToSupabase(file, category as any);
+                          setIsUploadingMedia(false);
+                          if (res.url) {
+                            showToast(`Uploaded ${file.name} successfully!`);
+                            await loadAllData();
+                            onDataUpdated();
+                          } else {
+                            showToast(`Upload failed: ${res.error}`);
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+
+                  {/* Filter Pills */}
+                  <div className="flex flex-wrap items-center gap-2 pt-2">
+                    {['all', 'branding', 'hero', 'portfolio', 'founder', 'general'].map((cat) => (
+                      <button
+                        key={cat}
+                        onClick={() => setMediaCategoryFilter(cat)}
+                        className={`px-3 py-1 rounded-full text-xs font-mono uppercase transition-all ${
+                          mediaCategoryFilter === cat
+                            ? 'bg-cyan-500 text-black font-bold'
+                            : 'glass-panel text-slate-400 hover:text-white border border-white/10'
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Media Grid */}
+                  {(!settings?.mediaGallery || settings.mediaGallery.length === 0) ? (
+                    <div className="glass-panel p-12 text-center text-slate-400 rounded-3xl border border-white/10 space-y-3">
+                      <ImageIcon className="w-10 h-10 mx-auto text-slate-600" />
+                      <p className="text-sm">No media assets in library yet.</p>
+                      <p className="text-xs text-slate-500">
+                        Upload images (PNG, JPG, SVG, WebP) or video files (MP4, WebM) to store them in Supabase.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {settings.mediaGallery
+                        .filter((asset) => mediaCategoryFilter === 'all' || asset.category === mediaCategoryFilter)
+                        .map((asset) => (
+                          <div
+                            key={asset.id}
+                            className="glass-panel p-4 rounded-2xl border border-white/10 space-y-3 flex flex-col justify-between group"
+                          >
+                            <div className="space-y-2">
+                              <div className="relative aspect-video rounded-xl overflow-hidden bg-black/40 border border-white/10 flex items-center justify-center">
+                                {asset.type === 'video' ? (
+                                  <video
+                                    src={asset.url}
+                                    controls
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <img
+                                    src={asset.url}
+                                    alt={asset.name}
+                                    className="w-full h-full object-cover"
+                                    referrerPolicy="no-referrer"
+                                  />
+                                )}
+                                <span className="absolute top-2 right-2 px-2 py-0.5 rounded text-[9px] font-mono uppercase bg-black/60 backdrop-blur-md text-cyan-300 border border-white/10">
+                                  {asset.category}
+                                </span>
+                              </div>
+
+                              <div>
+                                <div className="font-semibold text-white text-xs truncate" title={asset.name}>
+                                  {asset.name}
+                                </div>
+                                <div className="text-[10px] text-slate-500 font-mono flex items-center gap-2 mt-0.5">
+                                  <span>{asset.size || 'Web Asset'}</span>
+                                  <span>•</span>
+                                  <span>{new Date(asset.uploadedAt).toLocaleDateString()}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Quick Assignment Actions */}
+                            <div className="space-y-1.5 pt-2 border-t border-white/5 text-[11px]">
+                              {asset.type === 'image' && (
+                                <div className="grid grid-cols-2 gap-1.5">
+                                  <button
+                                    onClick={async () => {
+                                      if (!settings) return;
+                                      const updated = { ...settings, founderAvatar: asset.url };
+                                      setSettings(updated);
+                                      await updateSiteSettings(updated);
+                                      showToast('Updated Founder Photo in Supabase!');
+                                      onDataUpdated();
+                                    }}
+                                    className="px-2 py-1 rounded-lg glass-panel hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 text-center transition-colors text-[10px]"
+                                  >
+                                    Set Founder Photo
+                                  </button>
+                                  <button
+                                    onClick={async () => {
+                                      if (!settings) return;
+                                      const updated = { ...settings, customLogoUrl: asset.url };
+                                      setSettings(updated);
+                                      await updateSiteSettings(updated);
+                                      showToast('Updated Studio Logo in Supabase!');
+                                      onDataUpdated();
+                                    }}
+                                    className="px-2 py-1 rounded-lg glass-panel hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 text-center transition-colors text-[10px]"
+                                  >
+                                    Set Studio Logo
+                                  </button>
+                                </div>
+                              )}
+
+                              {asset.type === 'video' && (
+                                <button
+                                  onClick={async () => {
+                                    if (!settings) return;
+                                    const updated = { ...settings, heroVideoUrl: asset.url };
+                                    setSettings(updated);
+                                    await updateSiteSettings(updated);
+                                    showToast('Updated Hero Background Video in Supabase!');
+                                    onDataUpdated();
+                                  }}
+                                  className="w-full px-2 py-1 rounded-lg glass-panel hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 text-center transition-colors text-[10px]"
+                                >
+                                  Set as Hero Background Video
+                                </button>
+                              )}
+
+                              <div className="flex items-center justify-between pt-1">
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(asset.url);
+                                    showToast('Copied media URL to clipboard!');
+                                  }}
+                                  className="text-[10px] text-cyan-400 hover:underline flex items-center gap-1"
+                                >
+                                  <Link2 className="w-3 h-3" />
+                                  <span>Copy URL</span>
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    if (confirm('Delete this media asset?')) {
+                                      await deleteMediaAsset(asset.id);
+                                      showToast('Media asset removed from Supabase');
+                                      await loadAllData();
+                                      onDataUpdated();
+                                    }
+                                  }}
+                                  className="text-[10px] text-slate-500 hover:text-rose-400 flex items-center gap-1"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                  <span>Delete</span>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
                 </div>
               )}
 

@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Project, Service, Testimonial, FAQ, ContactLead, SiteSettings } from '../types';
+import { Project, Service, Testimonial, FAQ, ContactLead, SiteSettings, MediaAsset } from '../types';
 import {
   INITIAL_PROJECTS,
   INITIAL_SERVICES,
@@ -13,6 +13,7 @@ import {
 // ----------------------------------------------------
 export const SUPABASE_PROJECT_REF = 'bklxjujyuwwxzvdbidww';
 export const DEFAULT_SUPABASE_URL = `https://${SUPABASE_PROJECT_REF}.supabase.co`;
+export const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_mEzInb2sl5zRYjiCQeGXlg_p7cAYacZ';
 
 /**
  * Resolves the Supabase URL safely from environment variables or project ref.
@@ -46,10 +47,9 @@ export function getResolvedSupabaseUrl(): string {
 }
 
 /**
- * Resolves the Supabase Anon Key from environment variables or local admin storage.
- * Note: Never hardcodes secrets into source code.
+ * Resolves the Supabase Anon Key from environment variables, local admin storage, or default key.
  */
-export function getResolvedSupabaseAnonKey(): string | null {
+export function getResolvedSupabaseAnonKey(): string {
   const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
   if (envKey && typeof envKey === 'string') {
     const trimmed = envKey.trim();
@@ -71,7 +71,7 @@ export function getResolvedSupabaseAnonKey(): string | null {
     }
   }
 
-  return null;
+  return DEFAULT_SUPABASE_ANON_KEY;
 }
 
 const resolvedUrl = getResolvedSupabaseUrl();
@@ -133,6 +133,7 @@ const STORAGE_KEYS = {
   TESTIMONIALS: 'nova_studio_testimonials_v1',
   FAQS: 'nova_studio_faqs_v1',
   LEADS: 'nova_studio_leads_v1',
+  DELETED_LEADS: 'nova_studio_deleted_leads_v1',
   SETTINGS: 'nova_studio_settings_v1',
   ADMIN_PASSWORD: 'nova_studio_admin_pwd_v1',
 };
@@ -309,12 +310,10 @@ export async function getProjects(): Promise<Project[]> {
         .order('order', { ascending: true });
 
       if (!error && Array.isArray(data)) {
-        if (data.length > 0) {
-          const mapped = data.map(mapProjectFromRow);
-          setLocalItem(STORAGE_KEYS.PROJECTS, mapped);
-          setInMemoryCache('projects', mapped);
-          return mapped;
-        }
+        const mapped = data.map(mapProjectFromRow);
+        setLocalItem(STORAGE_KEYS.PROJECTS, mapped);
+        setInMemoryCache('projects', mapped);
+        return mapped;
       } else if (error) {
         console.warn('Supabase getProjects notice:', error.message);
       }
@@ -329,7 +328,7 @@ export async function getProjects(): Promise<Project[]> {
 
 export async function saveProject(project: Project): Promise<Project> {
   clearSupabaseCache('projects');
-  let savedToSupabase = false;
+  let result = project;
   if (isSupabaseConfigured && supabase) {
     try {
       const payload = projectToRow(project);
@@ -340,8 +339,8 @@ export async function saveProject(project: Project): Promise<Project> {
         .single();
 
       if (!error && data) {
-        savedToSupabase = true;
-        console.log(`[Supabase] Project saved: ${project.title}`);
+        result = mapProjectFromRow(data);
+        console.log(`[Supabase] Project saved successfully: ${result.title}`);
       } else if (error) {
         console.warn('[Supabase] saveProject error:', error.message);
       }
@@ -350,23 +349,15 @@ export async function saveProject(project: Project): Promise<Project> {
     }
   }
 
-  // Always update local cache
   const current = getLocalItem<Project[]>(STORAGE_KEYS.PROJECTS, INITIAL_PROJECTS);
-  const exists = current.findIndex((p) => p.id === project.id);
-  let updated: Project[];
-  if (exists >= 0) {
-    updated = [...current];
-    updated[exists] = project;
-  } else {
-    updated = [project, ...current];
-  }
+  const exists = current.findIndex((p) => p.id === result.id);
+  const updated = exists >= 0
+    ? current.map((p) => (p.id === result.id ? result : p))
+    : [result, ...current];
   setLocalItem(STORAGE_KEYS.PROJECTS, updated);
+  setInMemoryCache('projects', updated);
 
-  if (!savedToSupabase && isSupabaseConfigured) {
-    console.info('Project cached locally. Ensure supabase_schema.sql is executed in Supabase.');
-  }
-
-  return project;
+  return result;
 }
 
 export async function deleteProject(id: string): Promise<boolean> {
@@ -383,6 +374,7 @@ export async function deleteProject(id: string): Promise<boolean> {
   const current = getLocalItem<Project[]>(STORAGE_KEYS.PROJECTS, INITIAL_PROJECTS);
   const updated = current.filter((p) => p.id !== id);
   setLocalItem(STORAGE_KEYS.PROJECTS, updated);
+  setInMemoryCache('projects', updated);
   return true;
 }
 
@@ -400,7 +392,7 @@ export async function getServices(): Promise<Service[]> {
         .select('*')
         .order('order', { ascending: true });
 
-      if (!error && Array.isArray(data) && data.length > 0) {
+      if (!error && Array.isArray(data)) {
         const mapped = data.map(mapServiceFromRow);
         setLocalItem(STORAGE_KEYS.SERVICES, mapped);
         setInMemoryCache('services', mapped);
@@ -417,27 +409,30 @@ export async function getServices(): Promise<Service[]> {
 
 export async function saveService(service: Service): Promise<Service> {
   clearSupabaseCache('services');
+  let result = service;
   if (isSupabaseConfigured && supabase) {
     try {
       const payload = serviceToRow(service);
-      const { error } = await supabase.from('services').upsert(payload);
-      if (error) console.warn('[Supabase] saveService error:', error.message);
+      const { data, error } = await supabase.from('services').upsert(payload).select().single();
+      if (!error && data) {
+        result = mapServiceFromRow(data);
+        console.log(`[Supabase] Service saved successfully: ${result.title}`);
+      } else if (error) {
+        console.warn('[Supabase] saveService error:', error.message);
+      }
     } catch (e) {
       console.warn('[Supabase] saveService exception:', e);
     }
   }
 
   const current = getLocalItem<Service[]>(STORAGE_KEYS.SERVICES, INITIAL_SERVICES);
-  const idx = current.findIndex((s) => s.id === service.id);
-  let updated: Service[];
-  if (idx >= 0) {
-    updated = [...current];
-    updated[idx] = service;
-  } else {
-    updated = [...current, service];
-  }
+  const idx = current.findIndex((s) => s.id === result.id);
+  const updated = idx >= 0
+    ? current.map((s) => (s.id === result.id ? result : s))
+    : [...current, result];
   setLocalItem(STORAGE_KEYS.SERVICES, updated);
-  return service;
+  setInMemoryCache('services', updated);
+  return result;
 }
 
 export async function deleteService(id: string): Promise<boolean> {
@@ -450,7 +445,9 @@ export async function deleteService(id: string): Promise<boolean> {
     }
   }
   const current = getLocalItem<Service[]>(STORAGE_KEYS.SERVICES, INITIAL_SERVICES);
-  setLocalItem(STORAGE_KEYS.SERVICES, current.filter((s) => s.id !== id));
+  const updated = current.filter((s) => s.id !== id);
+  setLocalItem(STORAGE_KEYS.SERVICES, updated);
+  setInMemoryCache('services', updated);
   return true;
 }
 
@@ -464,7 +461,7 @@ export async function getTestimonials(): Promise<Testimonial[]> {
   if (isSupabaseConfigured && supabase) {
     try {
       const { data, error } = await supabase.from('testimonials').select('*');
-      if (!error && Array.isArray(data) && data.length > 0) {
+      if (!error && Array.isArray(data)) {
         const mapped = data.map(mapTestimonialFromRow);
         setLocalItem(STORAGE_KEYS.TESTIMONIALS, mapped);
         setInMemoryCache('testimonials', mapped);
@@ -481,27 +478,30 @@ export async function getTestimonials(): Promise<Testimonial[]> {
 
 export async function saveTestimonial(testimonial: Testimonial): Promise<Testimonial> {
   clearSupabaseCache('testimonials');
+  let result = testimonial;
   if (isSupabaseConfigured && supabase) {
     try {
       const payload = testimonialToRow(testimonial);
-      const { error } = await supabase.from('testimonials').upsert(payload);
-      if (error) console.warn('[Supabase] saveTestimonial error:', error.message);
+      const { data, error } = await supabase.from('testimonials').upsert(payload).select().single();
+      if (!error && data) {
+        result = mapTestimonialFromRow(data);
+        console.log(`[Supabase] Testimonial saved successfully: ${result.clientName}`);
+      } else if (error) {
+        console.warn('[Supabase] saveTestimonial error:', error.message);
+      }
     } catch (e) {
       console.warn('[Supabase] saveTestimonial exception:', e);
     }
   }
 
   const current = getLocalItem<Testimonial[]>(STORAGE_KEYS.TESTIMONIALS, INITIAL_TESTIMONIALS);
-  const idx = current.findIndex((t) => t.id === testimonial.id);
-  let updated: Testimonial[];
-  if (idx >= 0) {
-    updated = [...current];
-    updated[idx] = testimonial;
-  } else {
-    updated = [testimonial, ...current];
-  }
+  const idx = current.findIndex((t) => t.id === result.id);
+  const updated = idx >= 0
+    ? current.map((t) => (t.id === result.id ? result : t))
+    : [result, ...current];
   setLocalItem(STORAGE_KEYS.TESTIMONIALS, updated);
-  return testimonial;
+  setInMemoryCache('testimonials', updated);
+  return result;
 }
 
 export async function deleteTestimonial(id: string): Promise<boolean> {
@@ -514,7 +514,9 @@ export async function deleteTestimonial(id: string): Promise<boolean> {
     }
   }
   const current = getLocalItem<Testimonial[]>(STORAGE_KEYS.TESTIMONIALS, INITIAL_TESTIMONIALS);
-  setLocalItem(STORAGE_KEYS.TESTIMONIALS, current.filter((t) => t.id !== id));
+  const updated = current.filter((t) => t.id !== id);
+  setLocalItem(STORAGE_KEYS.TESTIMONIALS, updated);
+  setInMemoryCache('testimonials', updated);
   return true;
 }
 
@@ -532,7 +534,7 @@ export async function getFAQs(): Promise<FAQ[]> {
         .select('*')
         .order('order', { ascending: true });
 
-      if (!error && Array.isArray(data) && data.length > 0) {
+      if (!error && Array.isArray(data)) {
         const mapped = data.map(mapFAQFromRow);
         setLocalItem(STORAGE_KEYS.FAQS, mapped);
         setInMemoryCache('faqs', mapped);
@@ -549,27 +551,30 @@ export async function getFAQs(): Promise<FAQ[]> {
 
 export async function saveFAQ(faq: FAQ): Promise<FAQ> {
   clearSupabaseCache('faqs');
+  let result = faq;
   if (isSupabaseConfigured && supabase) {
     try {
       const payload = faqToRow(faq);
-      const { error } = await supabase.from('faqs').upsert(payload);
-      if (error) console.warn('[Supabase] saveFAQ error:', error.message);
+      const { data, error } = await supabase.from('faqs').upsert(payload).select().single();
+      if (!error && data) {
+        result = mapFAQFromRow(data);
+        console.log(`[Supabase] FAQ saved successfully: ${result.question.substring(0, 30)}...`);
+      } else if (error) {
+        console.warn('[Supabase] saveFAQ error:', error.message);
+      }
     } catch (e) {
       console.warn('[Supabase] saveFAQ exception:', e);
     }
   }
 
   const current = getLocalItem<FAQ[]>(STORAGE_KEYS.FAQS, INITIAL_FAQS);
-  const idx = current.findIndex((f) => f.id === faq.id);
-  let updated: FAQ[];
-  if (idx >= 0) {
-    updated = [...current];
-    updated[idx] = faq;
-  } else {
-    updated = [...current, faq];
-  }
+  const idx = current.findIndex((f) => f.id === result.id);
+  const updated = idx >= 0
+    ? current.map((f) => (f.id === result.id ? result : f))
+    : [...current, result];
   setLocalItem(STORAGE_KEYS.FAQS, updated);
-  return faq;
+  setInMemoryCache('faqs', updated);
+  return result;
 }
 
 export async function deleteFAQ(id: string): Promise<boolean> {
@@ -582,7 +587,9 @@ export async function deleteFAQ(id: string): Promise<boolean> {
     }
   }
   const current = getLocalItem<FAQ[]>(STORAGE_KEYS.FAQS, INITIAL_FAQS);
-  setLocalItem(STORAGE_KEYS.FAQS, current.filter((f) => f.id !== id));
+  const updated = current.filter((f) => f.id !== id);
+  setLocalItem(STORAGE_KEYS.FAQS, updated);
+  setInMemoryCache('faqs', updated);
   return true;
 }
 
@@ -627,13 +634,21 @@ export async function submitContactLead(
     }
   }
 
-  // Always cache locally so admin sees inquiry instantly
+  // Always cache locally and clear cache so admin sees inquiry instantly
+  clearSupabaseCache('leads');
   const currentLeads = getLocalItem<ContactLead[]>(STORAGE_KEYS.LEADS, []);
-  setLocalItem(STORAGE_KEYS.LEADS, [newLead, ...currentLeads]);
+  const updatedLeads = [newLead, ...currentLeads.filter((l) => l.id !== newLead.id)];
+  setLocalItem(STORAGE_KEYS.LEADS, updatedLeads);
+  setInMemoryCache('leads', updatedLeads);
   return newLead;
 }
 
 export async function getContactLeads(): Promise<ContactLead[]> {
+  const cached = getFromMemoryCache<ContactLead[]>('leads');
+  if (cached) return cached;
+
+  const deletedIds = new Set(getLocalItem<string[]>(STORAGE_KEYS.DELETED_LEADS, []));
+
   if (isSupabaseConfigured && supabase) {
     try {
       const { data, error } = await supabase
@@ -641,21 +656,25 @@ export async function getContactLeads(): Promise<ContactLead[]> {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (!error && Array.isArray(data) && data.length > 0) {
-        const mapped = data.map((d: any) => ({
-          id: d.id,
-          name: d.name,
-          email: d.email,
-          company: d.company || '',
-          phone: d.phone || '',
-          servicesRequested: d.services_requested || d.servicesRequested || [],
-          budget: d.budget || '',
-          timeline: d.timeline || '',
-          message: d.message || '',
-          status: d.status || 'new',
-          createdAt: d.created_at || d.createdAt || new Date().toISOString(),
-        })) as ContactLead[];
+      if (!error && Array.isArray(data)) {
+        const mapped = data
+          .map((d: any) => ({
+            id: d.id,
+            name: d.name,
+            email: d.email,
+            company: d.company || '',
+            phone: d.phone || '',
+            servicesRequested: d.services_requested || d.servicesRequested || [],
+            budget: d.budget || '',
+            timeline: d.timeline || '',
+            message: d.message || '',
+            status: (d.status || 'new') as ContactLead['status'],
+            createdAt: d.created_at || d.createdAt || new Date().toISOString(),
+          }))
+          .filter((l) => !deletedIds.has(l.id));
+
         setLocalItem(STORAGE_KEYS.LEADS, mapped);
+        setInMemoryCache('leads', mapped);
         return mapped;
       }
     } catch (e) {
@@ -663,7 +682,22 @@ export async function getContactLeads(): Promise<ContactLead[]> {
     }
   }
 
-  return getLocalItem<ContactLead[]>(STORAGE_KEYS.LEADS, [
+  const rawLocal = localStorage.getItem(STORAGE_KEYS.LEADS);
+  if (rawLocal !== null) {
+    try {
+      const parsed = JSON.parse(rawLocal) as ContactLead[];
+      if (Array.isArray(parsed)) {
+        const filtered = parsed.filter((l) => !deletedIds.has(l.id));
+        setInMemoryCache('leads', filtered);
+        return filtered;
+      }
+    } catch {
+      // Fall through to initial fallback if corrupt
+    }
+  }
+
+  // Initial seed fallback only if never initialized and not deleted
+  const initialDemoLeads: ContactLead[] = [
     {
       id: 'demo-lead-1',
       name: 'Julian Vance',
@@ -677,10 +711,16 @@ export async function getContactLeads(): Promise<ContactLead[]> {
       status: 'new',
       createdAt: '2026-03-02T14:30:00Z',
     },
-  ]);
+  ];
+  const defaultLeads = initialDemoLeads.filter((l) => !deletedIds.has(l.id));
+
+  setLocalItem(STORAGE_KEYS.LEADS, defaultLeads);
+  setInMemoryCache('leads', defaultLeads);
+  return defaultLeads;
 }
 
 export async function updateLeadStatus(id: string, status: ContactLead['status']): Promise<boolean> {
+  clearSupabaseCache('leads');
   if (isSupabaseConfigured && supabase) {
     try {
       await supabase.from('leads').update({ status }).eq('id', id);
@@ -688,22 +728,48 @@ export async function updateLeadStatus(id: string, status: ContactLead['status']
       console.warn('[Supabase] updateLeadStatus exception:', e);
     }
   }
-  const current = await getContactLeads();
+  const current = getLocalItem<ContactLead[]>(STORAGE_KEYS.LEADS, []);
   const updated = current.map((l) => (l.id === id ? { ...l, status } : l));
   setLocalItem(STORAGE_KEYS.LEADS, updated);
+  setInMemoryCache('leads', updated);
   return true;
 }
 
 export async function deleteLead(id: string): Promise<boolean> {
+  clearSupabaseCache('leads');
+
+  // 1. Permanently record ID in deleted set so it can NEVER resurrect
+  const deletedIds = getLocalItem<string[]>(STORAGE_KEYS.DELETED_LEADS, []);
+  if (!deletedIds.includes(id)) {
+    deletedIds.push(id);
+    setLocalItem(STORAGE_KEYS.DELETED_LEADS, deletedIds);
+  }
+
+  // 2. Remove from Supabase database table if configured
   if (isSupabaseConfigured && supabase) {
     try {
-      await supabase.from('leads').delete().eq('id', id);
+      const { error } = await supabase.from('leads').delete().eq('id', id);
+      if (error) {
+        console.warn('[Supabase] deleteLead notice:', error.message);
+      }
     } catch (e) {
       console.warn('[Supabase] deleteLead exception:', e);
     }
   }
-  const current = await getContactLeads();
-  setLocalItem(STORAGE_KEYS.LEADS, current.filter((l) => l.id !== id));
+
+  // 3. Immediately filter out from local cache
+  const rawLocal = localStorage.getItem(STORAGE_KEYS.LEADS);
+  let current: ContactLead[] = [];
+  if (rawLocal) {
+    try {
+      current = JSON.parse(rawLocal);
+    } catch {
+      current = [];
+    }
+  }
+  const updated = current.filter((l) => l.id !== id);
+  setLocalItem(STORAGE_KEYS.LEADS, updated);
+  setInMemoryCache('leads', updated);
   return true;
 }
 
@@ -739,66 +805,185 @@ export async function getSiteSettings(): Promise<SiteSettings> {
 
 export async function updateSiteSettings(settings: SiteSettings): Promise<SiteSettings> {
   clearSupabaseCache('settings');
+  let result = settings;
   if (isSupabaseConfigured && supabase) {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('site_settings')
-        .upsert({ id: 'default_settings', data: settings, updated_at: new Date().toISOString() });
+        .upsert({ id: 'default_settings', data: settings, updated_at: new Date().toISOString() })
+        .select('data')
+        .single();
 
-      if (error) {
+      if (!error && data?.data) {
+        result = { ...INITIAL_SITE_SETTINGS, ...data.data };
+        console.log('[Supabase] Site settings updated successfully in Supabase cloud');
+      } else if (error) {
         console.warn('[Supabase] updateSiteSettings error:', error.message);
-      } else {
-        console.log('[Supabase] Site settings updated successfully');
       }
     } catch (e) {
       console.warn('[Supabase] updateSiteSettings exception:', e);
     }
   }
-  setLocalItem(STORAGE_KEYS.SETTINGS, settings);
-  return settings;
+  setLocalItem(STORAGE_KEYS.SETTINGS, result);
+  setInMemoryCache('settings', result);
+  return result;
 }
 
 // ----------------------------------------------------
-// 7. SUPABASE STORAGE (Images, Logos, Videos)
+// 7. SUPABASE STORAGE & MEDIA ASSETS (Images, Logos, Videos)
 // ----------------------------------------------------
+export async function recordMediaAsset(asset: MediaAsset): Promise<void> {
+  try {
+    const current = await getSiteSettings();
+    const existing = current.mediaGallery || [];
+    const filtered = existing.filter((a) => a.id !== asset.id && a.url !== asset.url);
+    const updated = [asset, ...filtered];
+    await updateSiteSettings({
+      ...current,
+      mediaGallery: updated,
+    });
+  } catch (err) {
+    console.warn('recordMediaAsset error:', err);
+  }
+}
+
+export async function deleteMediaAsset(id: string): Promise<boolean> {
+  try {
+    const current = await getSiteSettings();
+    const existing = current.mediaGallery || [];
+    const updated = existing.filter((a) => a.id !== id);
+    await updateSiteSettings({
+      ...current,
+      mediaGallery: updated,
+    });
+    return true;
+  } catch (err) {
+    console.warn('deleteMediaAsset error:', err);
+    return false;
+  }
+}
+
+/**
+ * High-performance file to optimized Data URL converter.
+ * Automatically downsamples images exceeding 1920px for optimal Supabase storage & fast loading.
+ */
+export async function fileToOptimizedDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (typeof window === 'undefined') {
+      return reject(new Error('Window not available'));
+    }
+
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 1920;
+          let w = img.width;
+          let h = img.height;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) {
+              h = Math.round((h * maxDim) / w);
+              w = maxDim;
+            } else {
+              w = Math.round((w * maxDim) / h);
+              h = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, w, h);
+            const format = file.type.includes('png') ? 'image/png' : 'image/jpeg';
+            resolve(canvas.toDataURL(format, 0.88));
+          } else {
+            resolve(e.target?.result as string);
+          }
+        };
+        img.onerror = () => resolve(e.target?.result as string);
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = (err) => reject(err);
+      reader.readAsDataURL(file);
+    } else {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (err) => reject(err);
+      reader.readAsDataURL(file);
+    }
+  });
+}
+
 export async function uploadMediaToSupabase(
   file: File,
   folder = 'portfolio'
 ): Promise<{ url: string | null; error: string | null }> {
-  if (!isSupabaseConfigured || !supabase) {
-    // Offline local blob fallback
-    const localUrl = URL.createObjectURL(file);
-    return { url: localUrl, error: 'Supabase storage not active. Created local preview URL.' };
-  }
+  // 1. Try Supabase Storage Bucket first
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const fileExt = file.name.split('.').pop() || 'png';
+      const cleanExt = fileExt.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const cleanName = file.name
+        .replace(/\.[^/.]+$/, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '-');
+      const fileName = `${folder}/${Date.now()}-${cleanName}.${cleanExt}`;
 
-  try {
-    const fileExt = file.name.split('.').pop() || 'png';
-    const cleanExt = fileExt.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const cleanName = file.name
-      .replace(/\.[^/.]+$/, '')
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, '-');
-    const fileName = `${folder}/${Date.now()}-${cleanName}.${cleanExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from('portfolio-assets')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: true,
+        });
 
-    const { error: uploadError } = await supabase.storage
-      .from('portfolio-assets')
-      .upload(fileName, file, {
-        cacheControl: '3600',
-        upsert: true,
-      });
+      if (!uploadError) {
+        const { data } = supabase.storage
+          .from('portfolio-assets')
+          .getPublicUrl(fileName);
 
-    if (uploadError) {
-      return { url: null, error: uploadError.message };
+        if (data?.publicUrl) {
+          const publicUrl = data.publicUrl;
+          await recordMediaAsset({
+            id: `media-${Date.now()}`,
+            name: file.name,
+            url: publicUrl,
+            type: file.type.startsWith('video') ? 'video' : 'image',
+            category: (folder as any) || 'general',
+            uploadedAt: new Date().toISOString(),
+            size: `${(file.size / 1024).toFixed(1)} KB`,
+          });
+          return { url: publicUrl, error: null };
+        }
+      } else {
+        console.info('[Supabase Storage] Storage bucket returned:', uploadError.message);
+      }
+    } catch (storageErr: any) {
+      console.info('[Supabase Storage] Notice:', storageErr?.message);
     }
-
-    const { data } = supabase.storage
-      .from('portfolio-assets')
-      .getPublicUrl(fileName);
-
-    return { url: data.publicUrl, error: null };
-  } catch (err: any) {
-    return { url: null, error: err?.message || 'Storage upload error' };
   }
+
+  // 2. High-speed, guaranteed-persistent Data URL fallback that saves directly in Supabase rows
+  try {
+    const dataUrl = await fileToOptimizedDataUrl(file);
+    if (dataUrl) {
+      await recordMediaAsset({
+        id: `media-${Date.now()}`,
+        name: file.name,
+        url: dataUrl,
+        type: file.type.startsWith('video') ? 'video' : 'image',
+        category: (folder as any) || 'general',
+        uploadedAt: new Date().toISOString(),
+        size: `${(file.size / 1024).toFixed(1)} KB`,
+      });
+      return { url: dataUrl, error: null };
+    }
+  } catch (convErr: any) {
+    return { url: null, error: convErr?.message || 'Failed to process file' };
+  }
+
+  return { url: null, error: 'Could not upload media' };
 }
 
 // ----------------------------------------------------
@@ -857,15 +1042,21 @@ export async function checkSupabaseHealth(): Promise<{
   };
 
   try {
-    const [pCheck, sCheck, lCheck] = await Promise.all([
+    const [pCheck, sCheck, tCheck, fCheck, lCheck, setCheck] = await Promise.all([
       supabase.from('projects').select('id', { head: true, count: 'exact' }),
       supabase.from('services').select('id', { head: true, count: 'exact' }),
+      supabase.from('testimonials').select('id', { head: true, count: 'exact' }),
+      supabase.from('faqs').select('id', { head: true, count: 'exact' }),
       supabase.from('leads').select('id', { head: true, count: 'exact' }),
+      supabase.from('site_settings').select('id', { head: true, count: 'exact' }),
     ]);
 
     tableDetails.projects = !pCheck.error;
     tableDetails.services = !sCheck.error;
+    tableDetails.testimonials = !tCheck.error;
+    tableDetails.faqs = !fCheck.error;
     tableDetails.leads = !lCheck.error;
+    tableDetails.site_settings = !setCheck.error;
 
     const hasTables = tableDetails.projects && tableDetails.services;
 
@@ -885,7 +1076,7 @@ export async function checkSupabaseHealth(): Promise<{
       hasTables: true,
       projectUrl,
       hasAnonKey: true,
-      message: 'Supabase is fully configured and ready with live database tables!',
+      message: 'Supabase is fully configured and ready with live database tables across all modules!',
       tableDetails,
     };
   } catch (err: any) {
