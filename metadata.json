@@ -1,0 +1,6 @@
+{
+  "name": "Nova Web Studio",
+  "description": "Premium futuristic 3D portfolio and digital agency website for Nova Web Studio offering web engineering, UI/UX systems, 3D experiences, and digital growth with complete Admin CMS and Supabase architecture.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

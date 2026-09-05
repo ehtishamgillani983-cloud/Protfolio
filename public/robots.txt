@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/
+
+Sitemap: https://novawebstudio.agency/sitemap.xml
+Host: https://novawebstudio.agency
