@@ -74,6 +74,16 @@ export default function App() {
 
   useEffect(() => {
     refreshData();
+
+    // Ensure Google Search Console verification meta tag is present in document.head
+    const verificationContent = 'aFZqSEC6WuxbVdViBnlvzkpJB1e-IICW1bUdsyNUR8s';
+    const existingTag = document.querySelector(`meta[name="google-site-verification"][content="${verificationContent}"]`);
+    if (!existingTag) {
+      const meta = document.createElement('meta');
+      meta.name = 'google-site-verification';
+      meta.content = verificationContent;
+      document.head.prepend(meta);
+    }
   }, []);
 
   const scrollToSection = (sectionId: string) => {

@@ -20,7 +20,7 @@ export const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_mEzInb2sl5zRYjiCQeGXlg_
  * Handles bare project refs (e.g. "bklxjujyuwwxzvdbidww") and ensures a valid HTTPS URL.
  */
 export function getResolvedSupabaseUrl(): string {
-  const envUrl = import.meta.env.VITE_SUPABASE_URL;
+  const envUrl = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_SUPABASE_URL : undefined;
   if (envUrl && typeof envUrl === 'string') {
     const trimmed = envUrl.trim();
     if (
@@ -50,7 +50,7 @@ export function getResolvedSupabaseUrl(): string {
  * Resolves the Supabase Anon Key from environment variables, local admin storage, or default key.
  */
 export function getResolvedSupabaseAnonKey(): string {
-  const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  const envKey = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_SUPABASE_ANON_KEY : undefined;
   if (envKey && typeof envKey === 'string') {
     const trimmed = envKey.trim();
     if (
@@ -85,6 +85,7 @@ function createSafeSupabaseClient(): SupabaseClient | null {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
+        storage: typeof window !== 'undefined' ? window.localStorage : undefined,
       },
     });
   } catch (err) {
@@ -139,6 +140,7 @@ const STORAGE_KEYS = {
 };
 
 function getLocalItem<T>(key: string, fallback: T): T {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return fallback;
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return fallback;
@@ -149,6 +151,7 @@ function getLocalItem<T>(key: string, fallback: T): T {
 }
 
 function setLocalItem<T>(key: string, value: T): void {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
   try {
     localStorage.setItem(key, JSON.stringify(value));
   } catch (err) {
@@ -626,6 +629,42 @@ export async function submitContactLead(
 
       if (!error) {
         console.log('[Supabase] Lead successfully recorded in Supabase database');
+
+        // Invoke Supabase Edge Function 'resend-email' for notification
+        try {
+          const { data: fnData, error: fnError } = await supabase.functions.invoke('resend-email', {
+            body: {
+              record: {
+                id: newLead.id,
+                name: newLead.name,
+                email: newLead.email,
+                company: newLead.company || '',
+                phone: newLead.phone || '',
+                services_requested: newLead.servicesRequested,
+                budget: newLead.budget || '',
+                timeline: newLead.timeline || '',
+                message: newLead.message,
+                created_at: newLead.createdAt,
+              },
+              name: newLead.name,
+              email: newLead.email,
+              company: newLead.company || '',
+              phone: newLead.phone || '',
+              servicesRequested: newLead.servicesRequested,
+              budget: newLead.budget || '',
+              timeline: newLead.timeline || '',
+              message: newLead.message,
+            },
+          });
+
+          if (fnError) {
+            console.warn('[Supabase] resend-email invoke returned error:', fnError);
+          } else {
+            console.log('[Supabase] resend-email invoked successfully:', fnData);
+          }
+        } catch (fnEx) {
+          console.warn('[Supabase] resend-email invocation exception:', fnEx);
+        }
       } else {
         console.warn('[Supabase] lead submit error:', error.message);
       }
@@ -989,22 +1028,90 @@ export async function uploadMediaToSupabase(
 // ----------------------------------------------------
 // 8. SUPABASE AUTH INTEGRATION
 // ----------------------------------------------------
+/**
+ * Retrieves the currently active Supabase Auth session from persistent storage.
+ */
+export async function getSupabaseSession() {
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      console.warn('[Supabase Auth] getSession error:', error.message);
+      return null;
+    }
+    return data?.session || null;
+  } catch (err) {
+    console.warn('[Supabase Auth] getSession exception:', err);
+    return null;
+  }
+}
+
+/**
+ * Validates the current user against the Supabase Auth server.
+ */
+export async function getSupabaseUser() {
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase.auth.getUser();
+    if (error) {
+      // If token is refreshing or offline, check cached session user
+      const session = await getSupabaseSession();
+      return session?.user || null;
+    }
+    return data?.user || null;
+  } catch (err) {
+    console.warn('[Supabase Auth] getUser exception:', err);
+    return null;
+  }
+}
+
+/**
+ * Listens to authentication state changes (SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED, USER_UPDATED).
+ */
+export function onSupabaseAuthStateChange(
+  callback: (event: string, session: any) => void
+) {
+  if (!supabase) return { unsubscribe: () => {} };
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(callback);
+  return { unsubscribe: () => subscription.unsubscribe() };
+}
+
+/**
+ * Signs in using Supabase Auth email and password, establishing a real JWT session.
+ */
 export async function signInWithSupabase(email: string, password: string) {
   if (!supabase) {
     return { data: null, error: new Error('Supabase client is unconfigured.') };
   }
-  return await supabase.auth.signInWithPassword({ email, password });
+  return await supabase.auth.signInWithPassword({
+    email: email.trim(),
+    password,
+  });
 }
 
+/**
+ * Signs up a new admin user in Supabase Auth.
+ */
+export async function signUpWithSupabase(email: string, password: string) {
+  if (!supabase) {
+    return { data: null, error: new Error('Supabase client is unconfigured.') };
+  }
+  return await supabase.auth.signUp({
+    email: email.trim(),
+    password,
+  });
+}
+
+/**
+ * Signs out from Supabase Auth and clears the active session tokens.
+ */
 export async function signOutSupabase() {
   if (!supabase) return;
-  await supabase.auth.signOut();
-}
-
-export async function getSupabaseUser() {
-  if (!supabase) return null;
-  const { data } = await supabase.auth.getUser();
-  return data?.user || null;
+  try {
+    await supabase.auth.signOut();
+  } catch (err) {
+    console.warn('[Supabase Auth] signOut notice:', err);
+  }
 }
 
 // ----------------------------------------------------
@@ -1186,13 +1293,15 @@ export function changeAdminPassword(newPassword: string): { success: boolean; er
 /**
  * Updates admin password using Supabase Auth:
  * await supabase.auth.updateUser({ password: newPassword })
+ * Strictly verifies an active Supabase Auth session exists first.
  */
 export async function updateSupabaseAdminPassword(newPassword: string): Promise<{
   success: boolean;
   error?: string;
+  user?: any;
 }> {
   if (!newPassword || newPassword.length < 8) {
-    return { success: false, error: 'Password must be at least 8 characters.' };
+    return { success: false, error: 'Password must be at least 8 characters long.' };
   }
 
   if (!supabase) {
@@ -1200,13 +1309,27 @@ export async function updateSupabaseAdminPassword(newPassword: string): Promise<
   }
 
   try {
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    // 1. Verify that a valid Supabase Auth session exists
+    const session = await getSupabaseSession();
+    if (!session || !session.access_token) {
+      return {
+        success: false,
+        error:
+          'Auth session missing! Please sign in with your Supabase Auth account to establish an active session.',
+      };
+    }
+
+    // 2. Update password for the currently authenticated Supabase user
+    const { data, error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) {
       return { success: false, error: error.message };
     }
-    return { success: true };
+    return { success: true, user: data?.user };
   } catch (err: any) {
-    return { success: false, error: err?.message || 'Failed to update password via Supabase Auth.' };
+    return {
+      success: false,
+      error: err?.message || 'Failed to update password via Supabase Auth.',
+    };
   }
 }
 

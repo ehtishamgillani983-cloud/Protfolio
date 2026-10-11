@@ -5,7 +5,7 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/((?!googlece7f7eac0e088020\\.html|google.*\\.html|sitemap\\.xml|robots\\.txt|favicon\\.ico|assets/).*)",
       "destination": "/index.html"
     }
   ],
