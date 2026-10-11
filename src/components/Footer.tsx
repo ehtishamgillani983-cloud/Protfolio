@@ -10,7 +10,7 @@ import {
   Lock,
   ExternalLink,
 } from 'lucide-react';
-import { SiteSettings, Service } from '../types';
+import { SiteSettings, Service, formatWhatsAppUrl } from '../types';
 
 interface FooterProps {
   settings: SiteSettings;
@@ -33,7 +33,10 @@ export const Footer: React.FC<FooterProps> = ({
   };
 
   const currentYear = new Date().getFullYear();
-  const whatsappUrl = `https://wa.me/${settings.whatsappNumber.replace(/[^0-9]/g, '')}`;
+  const whatsappUrl = formatWhatsAppUrl(
+    settings.whatsappNumber,
+    'Hello Syed Ehtisham Gillani, I am contacting Nova Web Studio.'
+  );
 
   return (
     <footer className="relative bg-[#04060a] border-t border-white/10 pt-20 pb-12 overflow-hidden text-slate-400 text-xs">

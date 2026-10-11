@@ -131,7 +131,35 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
               </p>
 
               <div className="space-y-3">
-                {/* Phone / Call Now */}
+                {/* WhatsApp - Primary Contact Channel */}
+                <a
+                  href={whatsappLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between p-4 rounded-2xl bg-emerald-950/20 border border-emerald-500/40 hover:border-emerald-400 hover:bg-emerald-950/40 transition-all group shadow-lg shadow-emerald-950/30"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 group-hover:scale-105 transition-transform">
+                      <MessageCircle className="w-5 h-5 fill-emerald-500 text-slate-900" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-mono text-emerald-400 font-semibold block">
+                          WhatsApp Chat
+                        </span>
+                        <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-500/30 text-emerald-300">
+                          Primary
+                        </span>
+                      </div>
+                      <span className="text-sm font-semibold text-white">{settings.whatsappNumber}</span>
+                    </div>
+                  </div>
+                  <span className="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-emerald-600 text-white shadow-sm group-hover:bg-emerald-500 transition-colors">
+                    Chat Now
+                  </span>
+                </a>
+
+                {/* Direct Phone / Call Now */}
                 <a
                   href={`tel:${settings.contactPhone}`}
                   className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-cyan-500/40 hover:bg-cyan-500/5 transition-all group"
@@ -141,33 +169,12 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
                       <Phone className="w-5 h-5" />
                     </div>
                     <div>
-                      <span className="text-xs font-mono text-slate-400 block">Phone / Call Now</span>
+                      <span className="text-xs font-mono text-slate-400 block">Phone / Call</span>
                       <span className="text-sm font-semibold text-white">{settings.contactPhone}</span>
                     </div>
                   </div>
                   <span className="px-3 py-1 rounded-full text-[11px] font-mono bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
                     Call Now
-                  </span>
-                </a>
-
-                {/* WhatsApp */}
-                <a
-                  href={whatsappLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-all group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 group-hover:scale-105 transition-transform">
-                      <MessageCircle className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <span className="text-xs font-mono text-slate-400 block">WhatsApp Chat</span>
-                      <span className="text-sm font-semibold text-white">{settings.whatsappNumber}</span>
-                    </div>
-                  </div>
-                  <span className="px-3 py-1 rounded-full text-[11px] font-mono bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                    Message
                   </span>
                 </a>
 

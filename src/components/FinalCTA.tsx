@@ -1,6 +1,6 @@
 import React from 'react';
 import { Sparkles, Phone, MessageCircle, ArrowRight, ShieldCheck, Mail } from 'lucide-react';
-import { SiteSettings } from '../types';
+import { SiteSettings, formatWhatsAppUrl } from '../types';
 
 interface FinalCTAProps {
   settings: SiteSettings;
@@ -8,9 +8,10 @@ interface FinalCTAProps {
 }
 
 export const FinalCTA: React.FC<FinalCTAProps> = ({ settings, onOpenContact }) => {
-  const whatsappUrl = `https://wa.me/${settings.whatsappNumber.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
+  const whatsappUrl = formatWhatsAppUrl(
+    settings.whatsappNumber,
     'Hello Syed Ehtisham Gillani, I would like to start a project with Nova Web Studio.'
-  )}`;
+  );
 
   return (
     <section className="py-24 relative overflow-hidden">

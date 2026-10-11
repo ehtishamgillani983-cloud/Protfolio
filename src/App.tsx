@@ -86,6 +86,17 @@ export default function App() {
     }
   }, []);
 
+  // Synchronize dynamic favicon and logo when settings are updated
+  useEffect(() => {
+    if (settings?.faviconUrl || settings?.customLogoUrl) {
+      const activeIcon = settings.faviconUrl || settings.customLogoUrl;
+      const existingIcons = document.querySelectorAll("link[rel*='icon']");
+      existingIcons.forEach((el) => {
+        (el as HTMLLinkElement).href = activeIcon;
+      });
+    }
+  }, [settings?.faviconUrl, settings?.customLogoUrl]);
+
   const scrollToSection = (sectionId: string) => {
     const elem = document.getElementById(sectionId);
     if (elem) {

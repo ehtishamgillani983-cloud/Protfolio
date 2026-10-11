@@ -9,7 +9,7 @@ import {
   ArrowRight,
   Monitor,
 } from 'lucide-react';
-import { SiteSettings } from '../types';
+import { SiteSettings, formatWhatsAppUrl } from '../types';
 
 interface NavbarProps {
   settings: SiteSettings;
@@ -37,27 +37,29 @@ export const Navbar: React.FC<NavbarProps> = ({
     { label: 'Home', href: '#' },
     { label: 'About', href: '#about' },
     { label: 'Services', href: '#services' },
+    { label: 'Why Us', href: '#why-us' },
     { label: 'Work', href: '#work' },
     { label: 'Process', href: '#process' },
     { label: 'FAQ', href: '#faq' },
     { label: 'Contact', href: '#contact' },
   ];
 
-  const whatsappUrl = `https://wa.me/${settings.whatsappNumber.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
+  const whatsappUrl = formatWhatsAppUrl(
+    settings.whatsappNumber,
     'Hello Syed Ehtisham Gillani, I would like to schedule a consultation regarding Nova Web Studio services.'
-  )}`;
+  );
 
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${
         isScrolled
-          ? 'bg-[#05070c]/85 backdrop-blur-xl border-b border-white/10 py-3 shadow-xl shadow-black/40'
+          ? 'bg-[#05070c]/90 backdrop-blur-xl border-b border-white/10 py-3 shadow-xl shadow-black/40'
           : 'bg-transparent py-5'
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between">
-          {/* Brand Logo / Monogram */}
+          {/* Brand Logo */}
           <a href="#" className="flex items-center gap-3 group">
             <img
               src={settings.customLogoUrl || '/assets/nova-logo.webp'}
@@ -93,20 +95,21 @@ export const Navbar: React.FC<NavbarProps> = ({
             ))}
           </nav>
 
-          {/* Desktop Action CTAs */}
+          {/* Desktop Action CTAs - WhatsApp Primary */}
           <div className="hidden sm:flex items-center gap-3">
-            {/* Quick WhatsApp CTA */}
+            {/* Primary WhatsApp Button */}
             <a
               href={whatsappUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="p-2 rounded-full glass-panel border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition-all"
-              title="Chat on WhatsApp"
+              className="px-4 py-2 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md shadow-emerald-950/40"
+              title="Chat directly on WhatsApp"
             >
-              <MessageCircle className="w-4 h-4" />
+              <MessageCircle className="w-4 h-4 fill-emerald-600 text-white" />
+              <span>WhatsApp</span>
             </a>
 
-            {/* Quick Call Button */}
+            {/* Direct Phone Call */}
             <a
               href={`tel:${settings.contactPhone}`}
               className="p-2 rounded-full glass-panel border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10 transition-all"
@@ -115,26 +118,28 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Phone className="w-4 h-4" />
             </a>
 
-            {/* Main Book Free Consultation Button */}
+            {/* Free Consultation CTA */}
             <a
               href="#contact"
               onClick={onOpenContact}
-              className="px-5 py-2.5 rounded-full text-xs font-semibold text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 transition-all shadow-lg shadow-cyan-500/20 flex items-center gap-1.5"
+              className="px-4 py-2 rounded-full text-xs font-semibold text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 transition-all shadow-lg shadow-cyan-500/20 flex items-center gap-1.5"
             >
-              <span>Book a Free Consultation</span>
+              <span>Consultation</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </a>
           </div>
 
-          {/* Mobile Hamburger Button */}
+          {/* Mobile Actions */}
           <div className="flex items-center gap-2 lg:hidden">
             <a
               href={whatsappUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="p-2 rounded-full glass-panel text-emerald-400 border border-emerald-500/30 sm:hidden"
+              className="px-3 py-1.5 rounded-full bg-emerald-600 text-white text-xs font-semibold flex items-center gap-1 shadow-sm"
+              title="Chat on WhatsApp"
             >
-              <MessageCircle className="w-4 h-4" />
+              <MessageCircle className="w-3.5 h-3.5 fill-white text-emerald-600" />
+              <span>WhatsApp</span>
             </a>
 
             <button

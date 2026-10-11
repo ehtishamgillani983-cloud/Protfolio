@@ -126,6 +126,8 @@ export interface SiteSettings {
     googleAnalyticsId?: string;
   };
   customLogoUrl?: string;
+  customLogoDarkUrl?: string;
+  faviconUrl?: string;
   customLogoText: string;
   projectAvailability: string;
   callNowEnabled: boolean;
@@ -171,3 +173,19 @@ export interface ProcessStep {
   deliverables: string[];
   duration: string;
 }
+
+export function formatWhatsAppUrl(
+  phone: string,
+  message = 'Hello Syed Ehtisham Gillani, I am contacting Nova Web Studio regarding a new digital project.'
+): string {
+  const digits = (phone || '03375192915').replace(/[^0-9]/g, '');
+  const internationalNumber = digits.startsWith('0')
+    ? '92' + digits.slice(1)
+    : digits.startsWith('92')
+    ? digits
+    : digits.length === 10
+    ? '92' + digits
+    : digits || '923375192915';
+  return `https://wa.me/${internationalNumber}?text=${encodeURIComponent(message)}`;
+}
+

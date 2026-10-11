@@ -1,6 +1,6 @@
 import React from 'react';
 import { User, Sparkles, CheckCircle2, ShieldCheck, ArrowUpRight, Phone, MessageCircle, Mail } from 'lucide-react';
-import { SiteSettings } from '../types';
+import { SiteSettings, formatWhatsAppUrl } from '../types';
 
 interface AboutFounderProps {
   settings: SiteSettings;
@@ -8,9 +8,10 @@ interface AboutFounderProps {
 }
 
 export const AboutFounder: React.FC<AboutFounderProps> = ({ settings, onOpenContact }) => {
-  const whatsappUrl = `https://wa.me/${settings.whatsappNumber.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
+  const whatsappUrl = formatWhatsAppUrl(
+    settings.whatsappNumber,
     'Hello Syed Ehtisham Gillani, I would like to schedule a consultation regarding my digital project with Nova Web Studio.'
-  )}`;
+  );
 
   return (
     <section id="about" className="py-24 relative overflow-hidden">

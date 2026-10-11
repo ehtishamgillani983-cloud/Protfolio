@@ -12,7 +12,7 @@ import {
   Video,
   Monitor,
 } from 'lucide-react';
-import { SiteSettings } from '../types';
+import { SiteSettings, formatWhatsAppUrl } from '../types';
 
 interface HeroProps {
   settings: SiteSettings;
@@ -41,7 +41,7 @@ export const Hero: React.FC<HeroProps> = ({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Ensure initial video playback at slow speed
+  // Ensure initial video playback at smooth speed
   useEffect(() => {
     const video = videoRef.current;
     if (video) {
@@ -74,7 +74,6 @@ export const Hero: React.FC<HeroProps> = ({
 
       const scrollY = window.scrollY;
       const windowHeight = window.innerHeight;
-      // Map first 1.8 screen heights of scroll to video duration
       const maxScroll = windowHeight * 1.8;
       const scrollFraction = Math.min(Math.max(scrollY / maxScroll, 0), 1);
 
@@ -87,23 +86,18 @@ export const Hero: React.FC<HeroProps> = ({
       }, 180);
     };
 
-    // Smooth interpolation loop
     const interpolateVideo = () => {
       if (isUserScrolling && video.duration && !isNaN(video.duration)) {
         if (!video.paused) {
           video.pause();
         }
-        // Smoothly interpolate current time towards targetTime
         const diff = targetTime - video.currentTime;
         if (Math.abs(diff) > 0.02) {
           video.currentTime += diff * 0.2;
         }
       } else if (!isUserScrolling && video.paused) {
-        // Slow continuous ambient playback when user stops scrolling
         video.playbackRate = settings.heroVideoPlaybackRate || 0.5;
-        video.play().catch(() => {
-          // Autoplay policy fallback
-        });
+        video.play().catch(() => {});
       }
       animationFrameId = requestAnimationFrame(interpolateVideo);
     };
@@ -120,22 +114,23 @@ export const Hero: React.FC<HeroProps> = ({
     };
   }, [settings.heroVideoUrl, isMobile, settings.heroVideoScrubEnabled, settings.heroVideoPlaybackRate]);
 
-  const whatsappUrl = `https://wa.me/${settings.whatsappNumber.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
+  const whatsappUrl = formatWhatsAppUrl(
+    settings.whatsappNumber,
     'Hello Syed Ehtisham Gillani, I am contacting Nova Web Studio regarding a new digital project.'
-  )}`;
+  );
 
-  const pills = [
-    { label: 'Websites', icon: Monitor },
-    { label: 'Web Apps', icon: Laptop },
-    { label: 'SaaS Platforms', icon: Layers },
-    { label: 'AI Chatbots', icon: Bot },
-    { label: 'Business Automation', icon: Sparkles },
+  const keyCapabilities = [
+    'Websites',
+    'Web Apps',
+    'SaaS Platforms',
+    'AI Solutions',
+    'Business Automation',
   ];
 
   const hasActiveVideo = Boolean(settings.heroVideoUrl && settings.heroVideoUrl.trim() !== '');
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center pt-28 pb-20 overflow-hidden">
+    <section className="relative min-h-[92vh] flex items-center justify-center pt-32 pb-20 overflow-hidden">
       {/* Background Layer: Cinematic Video (if enabled and provided) */}
       {hasActiveVideo && (settings.heroBackgroundMode === 'cinematic-video' || settings.heroBackgroundMode === 'hybrid') && (
         <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
@@ -150,7 +145,7 @@ export const Hero: React.FC<HeroProps> = ({
             className="w-full h-full object-cover opacity-35 filter contrast-125 saturate-110"
           />
           {/* Dark gradient overlay to preserve legibility and contrast */}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#05070c] via-[#05070c]/70 to-[#05070c]/90" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#05070c] via-[#05070c]/75 to-[#05070c]/90" />
         </div>
       )}
 
@@ -158,10 +153,10 @@ export const Hero: React.FC<HeroProps> = ({
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-gradient-to-b from-cyan-500/15 via-blue-600/10 to-transparent rounded-full blur-3xl pointer-events-none -z-10" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full text-center">
-        {/* Availability Badge */}
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full glass-panel border border-cyan-500/30 text-xs font-mono text-cyan-300 mb-8 shadow-lg shadow-cyan-950/40 animate-pulse">
-          <span className="w-2 h-2 rounded-full bg-cyan-400" />
-          <span>{settings.projectAvailability || 'ACCEPTING NEW PROJECTS & FREE CONSULTATIONS'}</span>
+        {/* Availability Status */}
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full glass-panel border border-cyan-500/30 text-xs font-mono text-cyan-300 mb-8 shadow-lg shadow-cyan-950/40">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span>{settings.projectAvailability || 'Accepting New Projects & Free Consultations'}</span>
         </div>
 
         {/* Main Headline */}
@@ -173,57 +168,43 @@ export const Hero: React.FC<HeroProps> = ({
             </span>
           </h1>
 
-          <p className="text-base sm:text-xl text-slate-300 font-light max-w-2xl mx-auto leading-relaxed pt-2">
-            We help businesses, startups, and ambitious brands build modern digital products:
-            high-speed websites, scalable web applications, SaaS platforms, AI chatbots, and automated workflows.
+          <p className="text-base sm:text-xl text-slate-300 font-normal max-w-2xl mx-auto leading-relaxed pt-2">
+            We help businesses, startups, and brands build high-performance digital products:
+            fast websites, web applications, SaaS platforms, AI chatbots, and automated workflows.
           </p>
         </div>
 
-        {/* Modern Agency Badges */}
-        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 my-8 max-w-2xl mx-auto">
-          {pills.map((pill, idx) => {
-            const IconComponent = pill.icon;
-            return (
-              <div
-                key={idx}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono text-slate-200 glass-panel border border-white/10 hover:border-cyan-400/40 transition-all"
-              >
-                <IconComponent className="w-3.5 h-3.5 text-cyan-400" />
-                <span>{pill.label}</span>
-              </div>
-            );
-          })}
+        {/* Clean Editorial Capabilities */}
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs font-mono text-slate-300 my-8 max-w-2xl mx-auto">
+          {keyCapabilities.map((cap, idx) => (
+            <React.Fragment key={cap}>
+              {idx > 0 && <span className="text-slate-500 select-none">·</span>}
+              <span className="text-slate-300">{cap}</span>
+            </React.Fragment>
+          ))}
         </div>
 
-        {/* High-Conversion CTAs: 4 Essential Actions */}
+        {/* Primary Contact CTAs - WhatsApp is Primary */}
         <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 pt-2">
-          {/* Primary: Book Free Consultation */}
-          <button
-            onClick={onOpenContact}
-            className="px-7 py-3.5 rounded-full text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 transition-all shadow-xl shadow-cyan-500/25 flex items-center gap-2 group"
-          >
-            <span>Book a Free Consultation</span>
-            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-          </button>
-
-          {/* Secondary: View Our Work */}
-          <button
-            onClick={onExploreWork}
-            className="px-6 py-3.5 rounded-full text-xs sm:text-sm font-semibold text-slate-200 glass-panel hover:text-white hover:border-cyan-400/50 hover:bg-white/[0.06] transition-all"
-          >
-            View Our Work
-          </button>
-
-          {/* Direct WhatsApp CTA */}
+          {/* Primary: WhatsApp */}
           <a
             href={whatsappUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="px-5 py-3.5 rounded-full text-xs sm:text-sm font-semibold text-emerald-300 glass-panel border-emerald-500/30 hover:border-emerald-400/60 hover:bg-emerald-500/10 transition-all flex items-center gap-1.5"
+            className="px-7 py-3.5 rounded-full text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition-all shadow-xl shadow-emerald-950/50 flex items-center gap-2.5 group hover:scale-[1.02]"
           >
-            <MessageCircle className="w-4 h-4 text-emerald-400" />
-            <span>WhatsApp</span>
+            <MessageCircle className="w-4 h-4 fill-white text-emerald-600" />
+            <span>Chat on WhatsApp</span>
+            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </a>
+
+          {/* Secondary: Book Free Consultation */}
+          <button
+            onClick={onOpenContact}
+            className="px-6 py-3.5 rounded-full text-xs sm:text-sm font-semibold text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 transition-all shadow-lg shadow-cyan-500/25 flex items-center gap-2"
+          >
+            <span>Book Free Consultation</span>
+          </button>
 
           {/* Direct Phone Call CTA */}
           <a
@@ -233,6 +214,14 @@ export const Hero: React.FC<HeroProps> = ({
             <Phone className="w-4 h-4 text-cyan-400" />
             <span>Call: {settings.contactPhone}</span>
           </a>
+
+          {/* View Our Work */}
+          <button
+            onClick={onExploreWork}
+            className="px-5 py-3.5 rounded-full text-xs sm:text-sm font-semibold text-slate-300 hover:text-white transition-colors"
+          >
+            View Work
+          </button>
         </div>
 
         {/* Direct Founder Trust Tag */}

@@ -912,6 +912,15 @@ export async function fileToOptimizedDataUrl(file: File): Promise<string> {
       return reject(new Error('Window not available'));
     }
 
+    // Preserve SVGs as crisp vector data URLs directly
+    if (file.type === 'image/svg+xml' || file.name.endsWith('.svg')) {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (err) => reject(err);
+      reader.readAsDataURL(file);
+      return;
+    }
+
     if (file.type.startsWith('image/')) {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -926,7 +935,7 @@ export async function fileToOptimizedDataUrl(file: File): Promise<string> {
               w = maxDim;
             } else {
               w = Math.round((w * maxDim) / h);
-              h = maxDim;
+              w = maxDim;
             }
           }
           const canvas = document.createElement('canvas');
@@ -955,11 +964,52 @@ export async function fileToOptimizedDataUrl(file: File): Promise<string> {
   });
 }
 
+function resolveMimeType(file: File): string {
+  if (file.type && file.type !== 'application/octet-stream') return file.type;
+  const ext = file.name.split('.').pop()?.toLowerCase();
+  switch (ext) {
+    case 'svg':
+      return 'image/svg+xml';
+    case 'png':
+      return 'image/png';
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'webp':
+      return 'image/webp';
+    case 'ico':
+      return 'image/x-icon';
+    case 'gif':
+      return 'image/gif';
+    case 'mp4':
+      return 'video/mp4';
+    case 'webm':
+      return 'video/webm';
+    case 'mov':
+      return 'video/quicktime';
+    default:
+      return 'image/png';
+  }
+}
+
 export async function uploadMediaToSupabase(
   file: File,
   folder = 'portfolio'
 ): Promise<{ url: string | null; error: string | null }> {
-  // 1. Try Supabase Storage Bucket first
+  // Validate file size: 50MB for videos, 20MB for images
+  const isVideo = file.type.startsWith('video/') || /\.(mp4|webm|mov)$/i.test(file.name);
+  const maxBytes = isVideo ? 50 * 1024 * 1024 : 20 * 1024 * 1024;
+  if (file.size > maxBytes) {
+    const limitLabel = isVideo ? '50MB' : '20MB';
+    return {
+      url: null,
+      error: `File is too large (${(file.size / (1024 * 1024)).toFixed(1)}MB). Max allowed size is ${limitLabel}. Please compress the file before uploading.`,
+    };
+  }
+
+  const mimeType = resolveMimeType(file);
+
+  // 1. Try Supabase Storage Bucket first (portfolio-assets)
   if (isSupabaseConfigured && supabase) {
     try {
       const fileExt = file.name.split('.').pop() || 'png';
@@ -975,6 +1025,7 @@ export async function uploadMediaToSupabase(
         .upload(fileName, file, {
           cacheControl: '3600',
           upsert: true,
+          contentType: mimeType,
         });
 
       if (!uploadError) {
@@ -988,7 +1039,7 @@ export async function uploadMediaToSupabase(
             id: `media-${Date.now()}`,
             name: file.name,
             url: publicUrl,
-            type: file.type.startsWith('video') ? 'video' : 'image',
+            type: isVideo ? 'video' : 'image',
             category: (folder as any) || 'general',
             uploadedAt: new Date().toISOString(),
             size: `${(file.size / 1024).toFixed(1)} KB`,
@@ -996,33 +1047,40 @@ export async function uploadMediaToSupabase(
           return { url: publicUrl, error: null };
         }
       } else {
-        console.info('[Supabase Storage] Storage bucket returned:', uploadError.message);
+        console.info('[Supabase Storage] Notice:', uploadError.message);
       }
     } catch (storageErr: any) {
-      console.info('[Supabase Storage] Notice:', storageErr?.message);
+      console.info('[Supabase Storage] Upload error:', storageErr?.message);
     }
   }
 
-  // 2. High-speed, guaranteed-persistent Data URL fallback that saves directly in Supabase rows
-  try {
-    const dataUrl = await fileToOptimizedDataUrl(file);
-    if (dataUrl) {
-      await recordMediaAsset({
-        id: `media-${Date.now()}`,
-        name: file.name,
-        url: dataUrl,
-        type: file.type.startsWith('video') ? 'video' : 'image',
-        category: (folder as any) || 'general',
-        uploadedAt: new Date().toISOString(),
-        size: `${(file.size / 1024).toFixed(1)} KB`,
-      });
-      return { url: dataUrl, error: null };
+  // 2. High-speed persistent fallback for images (stores directly in database record)
+  if (!isVideo) {
+    try {
+      const dataUrl = await fileToOptimizedDataUrl(file);
+      if (dataUrl) {
+        await recordMediaAsset({
+          id: `media-${Date.now()}`,
+          name: file.name,
+          url: dataUrl,
+          type: 'image',
+          category: (folder as any) || 'general',
+          uploadedAt: new Date().toISOString(),
+          size: `${(file.size / 1024).toFixed(1)} KB`,
+        });
+        return { url: dataUrl, error: null };
+      }
+    } catch (convErr: any) {
+      return { url: null, error: convErr?.message || 'Failed to process image' };
     }
-  } catch (convErr: any) {
-    return { url: null, error: convErr?.message || 'Failed to process file' };
   }
 
-  return { url: null, error: 'Could not upload media' };
+  return {
+    url: null,
+    error: isVideo
+      ? 'Video upload failed. Please verify Supabase storage bucket permissions or provide a valid video URL.'
+      : 'Could not upload media file.',
+  };
 }
 
 // ----------------------------------------------------
