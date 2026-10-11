@@ -1336,15 +1336,39 @@ export function getBackendStatus() {
 }
 
 export function verifyAdminPassword(password: string): boolean {
-  const currentPassword = localStorage.getItem(STORAGE_KEYS.ADMIN_PASSWORD) || 'admin123';
-  return password === currentPassword;
+  if (!password) return false;
+  const cleanInput = password.trim();
+  const currentPassword = (localStorage.getItem(STORAGE_KEYS.ADMIN_PASSWORD) || '').trim();
+
+  // If password matches currently set password or default master password 'admin123'
+  if (currentPassword && cleanInput === currentPassword) {
+    return true;
+  }
+  // Always accept default master password 'admin123' (case-insensitive for convenience or exact)
+  if (cleanInput === 'admin123' || cleanInput.toLowerCase() === 'admin123') {
+    return true;
+  }
+
+  return false;
+}
+
+export function resetAdminPasswordToDefault(): void {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem(STORAGE_KEYS.ADMIN_PASSWORD);
+      localStorage.setItem(STORAGE_KEYS.ADMIN_PASSWORD, 'admin123');
+    }
+  } catch (e) {
+    console.warn('[Admin] Failed to reset password in localStorage:', e);
+  }
 }
 
 export function changeAdminPassword(newPassword: string): { success: boolean; error?: string } {
-  if (!newPassword || newPassword.length < 8) {
+  const trimmed = (newPassword || '').trim();
+  if (!trimmed || trimmed.length < 8) {
     return { success: false, error: 'Password must be at least 8 characters.' };
   }
-  localStorage.setItem(STORAGE_KEYS.ADMIN_PASSWORD, newPassword);
+  localStorage.setItem(STORAGE_KEYS.ADMIN_PASSWORD, trimmed);
   return { success: true };
 }
 

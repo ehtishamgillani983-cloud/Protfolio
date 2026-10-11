@@ -71,6 +71,7 @@ import {
   updateSiteSettings,
   getBackendStatus,
   verifyAdminPassword,
+  resetAdminPasswordToDefault,
   changeAdminPassword,
   getSupabaseSession,
   onSupabaseAuthStateChange,
@@ -517,15 +518,44 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </button>
           </form>
 
-          <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
-            <span>Default Password: admin123</span>
-            <button
-              type="button"
-              onClick={onClose}
-              className="text-slate-600 hover:text-slate-900 font-medium"
-            >
-              Cancel & Exit
-            </button>
+          <div className="pt-3 border-t border-slate-100 flex flex-col gap-2.5 text-xs text-slate-500">
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-slate-600">
+                Default Password: <code className="px-1.5 py-0.5 bg-slate-100 rounded text-blue-700 font-mono font-bold">admin123</code>
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setPasswordInput('admin123');
+                  resetAdminPasswordToDefault();
+                  setLoginError('');
+                }}
+                className="text-blue-600 hover:text-blue-800 font-semibold underline underline-offset-2"
+              >
+                Use default password
+              </button>
+            </div>
+            <div className="flex items-center justify-between pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  resetAdminPasswordToDefault();
+                  setPasswordInput('admin123');
+                  setLoginError('');
+                  alert('Password has been reset to default: admin123');
+                }}
+                className="text-[11px] text-slate-500 hover:text-slate-800 transition-colors"
+              >
+                Reset password to default
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="text-slate-500 hover:text-slate-900 font-medium"
+              >
+                Cancel & Exit
+              </button>
+            </div>
           </div>
         </div>
       </div>
