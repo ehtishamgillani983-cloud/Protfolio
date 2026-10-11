@@ -623,6 +623,39 @@ export const INITIAL_PROJECTS: Project[] = [
     createdAt: '2026-01-10T10:00:00Z',
   },
   {
+    id: 'proj-cleaning-demo',
+    title: 'Commercial Cleaning Website Demo',
+    slug: 'commercial-cleaning-website-demo',
+    client: 'USA Janitorial Showcase (Concept Preview)',
+    year: '2026',
+    category: 'Websites',
+    projectType: 'concept',
+    summary: 'A high-converting B2B commercial cleaning & janitorial website concept engineered for USA facility managers, office cleaning contractors, and commercial quote requests.',
+    fullDescription:
+      'A dedicated concept preview developed by Nova Web Studio tailored for the USA commercial cleaning sector. Features dedicated facility breakdowns (corporate offices, healthcare clinics, industrial warehouses, schools), a 60-second interactive commercial estimate form, and direct mobile dispatch actions.',
+    challenge:
+      'Commercial cleaning contractors in the USA often struggle with outdated, slow templates that fail to convince enterprise facility managers and property directors to request RFPs.',
+    solution:
+      'Designed a high-trust corporate aesthetic featuring structured commercial quote workflows, localized USA service territory pages, and one-tap mobile contact options.',
+    metrics: [
+      { metric: 'Concept Preview', label: 'Commercial Janitorial UI' },
+      { metric: '60-Sec', label: 'Commercial Quote Workflow' },
+      { metric: 'USA B2B', label: 'Facility Manager Design' },
+    ],
+    techStack: ['React', 'Next.js', 'Tailwind CSS', 'TypeScript', 'SEO Schema', 'B2B Conversion'],
+    liveUrl: '/commercial-cleaning-websites',
+    featured: true,
+    mainImage:
+      'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1400&q=80',
+    galleryImages: [
+      'https://images.unsplash.com/photo-1497215728101-856f4ea42174?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1200&q=80',
+    ],
+    videoUrl: '',
+    order: 2,
+    createdAt: '2026-02-01T10:00:00Z',
+  },
+  {
     id: 'proj-2',
     title: 'LuxeCart E-Commerce Platform',
     slug: 'luxecart-ecommerce-platform',

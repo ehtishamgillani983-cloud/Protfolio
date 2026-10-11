@@ -17,6 +17,7 @@ interface FooterProps {
   services: Service[];
   onOpenAdmin: () => void;
   onSelectService: (serviceTitle: string) => void;
+  onNavigateCommercialCleaning?: () => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
@@ -24,6 +25,7 @@ export const Footer: React.FC<FooterProps> = ({
   services,
   onOpenAdmin,
   onSelectService,
+  onNavigateCommercialCleaning,
 }) => {
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
@@ -173,6 +175,23 @@ export const Footer: React.FC<FooterProps> = ({
               <li>
                 <a href="#services" className="hover:text-white transition-colors">
                   Services
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/commercial-cleaning-websites"
+                  onClick={(e) => {
+                    if (onNavigateCommercialCleaning) {
+                      e.preventDefault();
+                      onNavigateCommercialCleaning();
+                    }
+                  }}
+                  className="text-cyan-400 hover:text-cyan-300 transition-colors font-medium inline-flex items-center gap-1.5"
+                >
+                  <span>Commercial Cleaning (USA)</span>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-950/60 border border-cyan-500/30 text-cyan-300 font-mono">
+                    Specialized
+                  </span>
                 </a>
               </li>
               <li>

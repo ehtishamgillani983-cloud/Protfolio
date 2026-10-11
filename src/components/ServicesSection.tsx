@@ -19,12 +19,14 @@ import {
   CheckCircle2,
   ChevronDown,
   MessageCircle,
+  Building2,
 } from 'lucide-react';
 import { Service } from '../types';
 
 interface ServicesSectionProps {
   services: Service[];
   onSelectServiceForContact: (serviceTitle: string) => void;
+  onNavigateCommercialCleaning?: () => void;
 }
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -48,6 +50,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
 export const ServicesSection: React.FC<ServicesSectionProps> = ({
   services,
   onSelectServiceForContact,
+  onNavigateCommercialCleaning,
 }) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [searchFilter, setSearchFilter] = useState<string>('');
@@ -140,6 +143,46 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
               onChange={(e) => setSearchFilter(e.target.value)}
               className="w-full px-3.5 py-1.5 rounded-full bg-white/[0.04] border border-white/10 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-cyan-500/50"
             />
+          </div>
+        </div>
+
+        {/* Specialized Industry Spotlight: Commercial Cleaning Websites */}
+        <div className="mb-10 p-6 sm:p-8 rounded-3xl glass-panel border border-cyan-500/30 bg-gradient-to-r from-[#0c1527] via-[#091120] to-[#070b14] relative overflow-hidden shadow-2xl">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+            <div className="space-y-2 max-w-2xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-xs font-mono text-cyan-300">
+                <Building2 className="w-3.5 h-3.5 text-cyan-400" />
+                <span>USA INDUSTRY SPECIALIZATION</span>
+              </div>
+              <h3 className="font-display text-xl sm:text-2xl font-bold text-white">
+                Commercial Cleaning & Janitorial Websites
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                Dedicated high-converting website design, localized territory SEO, and 60-second commercial quote request forms engineered specifically for commercial cleaning contractors and office cleaning companies across the USA.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <a
+                href="/commercial-cleaning-websites"
+                onClick={(e) => {
+                  if (onNavigateCommercialCleaning) {
+                    e.preventDefault();
+                    onNavigateCommercialCleaning();
+                  }
+                }}
+                className="px-5 py-3 rounded-full text-xs font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 transition-all shadow-lg shadow-cyan-500/25 flex items-center gap-2"
+              >
+                <span>Explore Commercial Cleaning Solutions</span>
+                <ArrowRight className="w-4 h-4" />
+              </a>
+              <button
+                onClick={() => onSelectServiceForContact('Commercial Cleaning Websites')}
+                className="px-4 py-3 rounded-full text-xs font-semibold text-slate-300 hover:text-white glass-panel border border-white/10 hover:border-cyan-500/30 transition-all"
+              >
+                Request Quote
+              </button>
+            </div>
           </div>
         </div>
 

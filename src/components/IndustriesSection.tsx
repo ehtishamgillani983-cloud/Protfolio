@@ -30,9 +30,13 @@ const ICON_MAP: Record<string, React.ElementType> = {
 
 interface IndustriesSectionProps {
   onSelectIndustry?: (name: string) => void;
+  onNavigateCommercialCleaning?: () => void;
 }
 
-export const IndustriesSection: React.FC<IndustriesSectionProps> = ({ onSelectIndustry }) => {
+export const IndustriesSection: React.FC<IndustriesSectionProps> = ({
+  onSelectIndustry,
+  onNavigateCommercialCleaning,
+}) => {
   return (
     <section id="industries" className="py-24 relative overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -96,6 +100,36 @@ export const IndustriesSection: React.FC<IndustriesSectionProps> = ({ onSelectIn
               </div>
             );
           })}
+        </div>
+
+        {/* Commercial Cleaning Callout Card */}
+        <div className="mt-12 p-6 rounded-2xl glass-panel border border-cyan-500/20 bg-[#090e1c]/80 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-300 shrink-0">
+              <Building2 className="w-5 h-5" />
+            </div>
+            <div>
+              <span className="font-display text-sm sm:text-base font-bold text-white block">
+                Commercial Cleaning & Janitorial Contractors (USA)
+              </span>
+              <span className="text-xs text-slate-300">
+                Explore our dedicated high-conversion web design, local SEO, and 60-second quote-request solutions tailored for American cleaning companies.
+              </span>
+            </div>
+          </div>
+          <a
+            href="/commercial-cleaning-websites"
+            onClick={(e) => {
+              if (onNavigateCommercialCleaning) {
+                e.preventDefault();
+                onNavigateCommercialCleaning();
+              }
+            }}
+            className="shrink-0 px-4 py-2 rounded-full text-xs font-semibold text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 transition-all shadow-md shadow-cyan-500/20 flex items-center gap-1.5"
+          >
+            <span>View Dedicated Page</span>
+            <ArrowUpRight className="w-3.5 h-3.5" />
+          </a>
         </div>
       </div>
     </section>

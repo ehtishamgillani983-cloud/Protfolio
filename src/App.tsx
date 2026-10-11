@@ -31,6 +31,7 @@ import {
   getSiteSettings,
   updateSiteSettings,
 } from './lib/supabase';
+import { CommercialCleaningPage } from './components/CommercialCleaningPage';
 
 // Code splitting & lazy loading for heavy modals and CMS to maximize initial page performance
 const ProjectModal = React.lazy(() =>
@@ -51,6 +52,30 @@ export default function App() {
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
   const [preSelectedService, setPreSelectedService] = useState<string | null>(null);
   const [visualStyle, setVisualStyle] = useState<VisualStyle>('cyber');
+
+  // Client-side routing state for /commercial-cleaning-websites and home
+  const [currentPath, setCurrentPath] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return window.location.pathname;
+    }
+    return '/';
+  });
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentPath(window.location.pathname);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const navigateTo = (path: string) => {
+    if (typeof window !== 'undefined') {
+      window.history.pushState({}, '', path);
+      setCurrentPath(path);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   // Load all dynamic content from data layer (Supabase-first, local-fallback)
   const refreshData = async () => {
@@ -133,6 +158,32 @@ export default function App() {
     );
   }
 
+  // Dedicated landing page route for /commercial-cleaning-websites
+  if (
+    currentPath === '/commercial-cleaning-websites' ||
+    currentPath.startsWith('/commercial-cleaning')
+  ) {
+    return (
+      <>
+        <CommercialCleaningPage
+          settings={settings}
+          onNavigateHome={() => navigateTo('/')}
+          onOpenAdmin={() => setIsAdminOpen(true)}
+        />
+        {/* Full Admin Dashboard / CMS (Lazy-loaded on demand) */}
+        {isAdminOpen && (
+          <React.Suspense fallback={null}>
+            <AdminDashboard
+              isOpen={isAdminOpen}
+              onClose={() => setIsAdminOpen(false)}
+              onDataUpdated={refreshData}
+            />
+          </React.Suspense>
+        )}
+      </>
+    );
+  }
+
   const showThreeCanvas = settings.heroBackgroundMode !== 'cinematic-video';
 
   return (
@@ -153,6 +204,7 @@ export default function App() {
         settings={settings}
         onOpenAdmin={() => setIsAdminOpen(true)}
         onOpenContact={() => scrollToSection('contact')}
+        onNavigateCommercialCleaning={() => navigateTo('/commercial-cleaning-websites')}
       />
 
       {/* Main Content Layout */}
@@ -162,6 +214,7 @@ export default function App() {
           onOpenContact={() => scrollToSection('contact')}
           onExploreWork={() => scrollToSection('work')}
           onToggleHeroVideoMode={handleToggleHeroVideoMode}
+          onNavigateCommercialCleaning={() => navigateTo('/commercial-cleaning-websites')}
         />
 
         <AboutFounder
@@ -172,6 +225,7 @@ export default function App() {
         <ServicesSection
           services={services}
           onSelectServiceForContact={handleSelectService}
+          onNavigateCommercialCleaning={() => navigateTo('/commercial-cleaning-websites')}
         />
 
         <WhyChooseUs />
@@ -182,6 +236,7 @@ export default function App() {
           onSelectIndustry={(industry) =>
             handleSelectService(`Industry Inquiry: ${industry}`)
           }
+          onNavigateCommercialCleaning={() => navigateTo('/commercial-cleaning-websites')}
         />
 
         <PortfolioSection
@@ -221,6 +276,7 @@ export default function App() {
         services={services}
         onOpenAdmin={() => setIsAdminOpen(true)}
         onSelectService={handleSelectService}
+        onNavigateCommercialCleaning={() => navigateTo('/commercial-cleaning-websites')}
       />
 
       {/* Case Study Detail Modal (Lazy-loaded on demand) */}
@@ -232,6 +288,7 @@ export default function App() {
             onClose={() => setActiveProjectModal(null)}
             onSelectProject={(project) => setActiveProjectModal(project)}
             onInquireProject={handleInquireFromModal}
+            onNavigateCommercialCleaning={() => navigateTo('/commercial-cleaning-websites')}
           />
         </React.Suspense>
       )}

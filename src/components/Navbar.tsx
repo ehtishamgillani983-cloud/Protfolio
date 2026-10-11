@@ -15,12 +15,14 @@ interface NavbarProps {
   settings: SiteSettings;
   onOpenAdmin: () => void;
   onOpenContact: () => void;
+  onNavigateCommercialCleaning?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   settings,
   onOpenAdmin,
   onOpenContact,
+  onNavigateCommercialCleaning,
 }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -37,6 +39,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { label: 'Home', href: '#' },
     { label: 'About', href: '#about' },
     { label: 'Services', href: '#services' },
+    { label: 'Commercial Cleaning', href: '/commercial-cleaning-websites', isSpecial: true },
     { label: 'Why Us', href: '#why-us' },
     { label: 'Work', href: '#work' },
     { label: 'Process', href: '#process' },
@@ -83,12 +86,22 @@ export const Navbar: React.FC<NavbarProps> = ({
           </a>
 
           {/* Desktop Navigation Links */}
-          <nav className="hidden lg:flex items-center gap-7">
+          <nav className="hidden lg:flex items-center gap-6">
             {navLinks.map((link) => (
               <a
                 key={link.label}
                 href={link.href}
-                className="text-xs font-medium text-slate-300 hover:text-cyan-300 transition-colors tracking-wide"
+                onClick={(e) => {
+                  if (link.isSpecial && onNavigateCommercialCleaning) {
+                    e.preventDefault();
+                    onNavigateCommercialCleaning();
+                  }
+                }}
+                className={`text-xs font-medium transition-all tracking-wide ${
+                  link.isSpecial
+                    ? 'text-cyan-300 hover:text-white px-2.5 py-1 rounded-full bg-cyan-950/50 border border-cyan-500/30 shadow-sm shadow-cyan-950/50'
+                    : 'text-slate-300 hover:text-cyan-300'
+                }`}
               >
                 {link.label}
               </a>
@@ -160,8 +173,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <a
                   key={link.label}
                   href={link.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="px-3 py-2 rounded-xl text-sm font-medium text-slate-200 hover:bg-white/[0.05] hover:text-cyan-300"
+                  onClick={(e) => {
+                    setMobileMenuOpen(false);
+                    if (link.isSpecial && onNavigateCommercialCleaning) {
+                      e.preventDefault();
+                      onNavigateCommercialCleaning();
+                    }
+                  }}
+                  className={`px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
+                    link.isSpecial
+                      ? 'bg-cyan-950/60 border border-cyan-500/40 text-cyan-300 font-semibold'
+                      : 'text-slate-200 hover:bg-white/[0.05] hover:text-cyan-300'
+                  }`}
                 >
                   {link.label}
                 </a>

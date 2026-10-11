@@ -19,6 +19,7 @@ interface HeroProps {
   onOpenContact: () => void;
   onExploreWork: () => void;
   onToggleHeroVideoMode?: (mode: '3d-canvas' | 'cinematic-video' | 'hybrid') => void;
+  onNavigateCommercialCleaning?: () => void;
 }
 
 export const Hero: React.FC<HeroProps> = ({
@@ -26,6 +27,7 @@ export const Hero: React.FC<HeroProps> = ({
   onOpenContact,
   onExploreWork,
   onToggleHeroVideoMode,
+  onNavigateCommercialCleaning,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
@@ -157,6 +159,25 @@ export const Hero: React.FC<HeroProps> = ({
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full glass-panel border border-cyan-500/30 text-xs font-mono text-cyan-300 mb-8 shadow-lg shadow-cyan-950/40">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           <span>{settings.projectAvailability || 'Accepting New Projects & Free Consultations'}</span>
+        </div>
+
+        {/* Industry Focus Spotlight */}
+        <div className="mb-6 flex justify-center">
+          <a
+            href="/commercial-cleaning-websites"
+            onClick={(e) => {
+              if (onNavigateCommercialCleaning) {
+                e.preventDefault();
+                onNavigateCommercialCleaning();
+              }
+            }}
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-panel border border-cyan-500/30 hover:border-cyan-400 bg-cyan-950/40 hover:bg-cyan-950/70 text-xs font-mono text-cyan-300 hover:text-white transition-all shadow-md group"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+            <span className="font-semibold text-cyan-200">USA Industry Focus:</span>
+            <span>Commercial Cleaning Websites</span>
+            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+          </a>
         </div>
 
         {/* Main Headline */}

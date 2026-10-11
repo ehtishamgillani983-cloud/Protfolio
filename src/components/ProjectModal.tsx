@@ -22,6 +22,7 @@ interface ProjectModalProps {
   onClose: () => void;
   onSelectProject: (project: Project) => void;
   onInquireProject: (projectName: string) => void;
+  onNavigateCommercialCleaning?: () => void;
 }
 
 export const ProjectModal: React.FC<ProjectModalProps> = ({
@@ -30,6 +31,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
   onClose,
   onSelectProject,
   onInquireProject,
+  onNavigateCommercialCleaning,
 }) => {
   const [activeImage, setActiveImage] = useState<string>('');
 
@@ -182,7 +184,22 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
             </div>
 
             <div className="flex items-center gap-3 shrink-0">
-              {project.liveUrl && project.liveUrl !== '#' ? (
+              {project.liveUrl && project.liveUrl.startsWith('/commercial-cleaning') ? (
+                <button
+                  onClick={() => {
+                    onClose();
+                    if (onNavigateCommercialCleaning) {
+                      onNavigateCommercialCleaning();
+                    } else {
+                      window.location.href = project.liveUrl;
+                    }
+                  }}
+                  className="px-5 py-2.5 rounded-full text-xs font-semibold text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 transition-all flex items-center gap-1.5 shadow-lg shadow-cyan-500/20"
+                >
+                  <span>View Dedicated Service Page</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              ) : project.liveUrl && project.liveUrl !== '#' ? (
                 <a
                   href={project.liveUrl}
                   target="_blank"
